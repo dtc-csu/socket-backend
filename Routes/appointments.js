@@ -1,7 +1,7 @@
 // routes/appointments.js
 const express = require('express');
 const router = express.Router();
-const poolPromise = require('./db');
+const poolPromise = require('../db');
 
 // ---------------------- GET appointments for a specific doctor ----------------------
 router.get('/doctor/:doctorId', async (req, res) => {
