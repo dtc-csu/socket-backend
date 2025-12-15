@@ -27,6 +27,7 @@
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "livekit-server-sdk": "^2.15.0",
-    "mssql": "^12.2.0"
+    "mssql": "^12.2.0",
+    "redis": "^5.10.0"
   }
 }
