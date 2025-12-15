@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node index.js"
@@ -19,10 +18,11 @@
     "url": "https://github.com/Dtc-csu/socket-backend/issues"
   },
   "engines": {
-  "node": "18.x"
+    "node": "18.x"
   },
   "homepage": "https://github.com/Dtc-csu/socket-backend#readme",
   "dependencies": {
+    "@sendgrid/mail": "^8.1.6",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
