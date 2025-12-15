@@ -14,11 +14,11 @@ app.get("/", (req, res) => {
 });
 
 // import routes
-const usersRoutes = require("../api/Routes/Users");
-const appointmentRoutes = require("./appointments");
-const doctorRoutes = require("../api/Routes/doctors");
-const patientRoutes = require("../api/Routes/patients");
-const chatRoute = require('../api/Routes/chat');
+const usersRoutes = require("./Routes/Users");
+const appointmentRoutes = require("./Routes/appointments");
+const doctorRoutes = require("./Routes/doctors");
+const patientRoutes = require("./Routes/patients");
+const chatRoute = require('./Routes/chat');
 
 app.use('/ChatMessages', chatRoute); 
 // FIXED route paths (added leading slash)
