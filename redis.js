@@ -1,12 +1,34 @@
+throw new Error("🚨 NEW REDIS FILE LOADED");
+console.log("🔥 THIS REDIS FILE IS LOADED 🔥");
+
 const redis = require("redis");
 
+if (!process.env.REDIS_URL) {
+  throw new Error("❌ REDIS_URL is not defined");
+}
+console.log("REDIS_URL:", process.env.REDIS_URL);
+
 const client = redis.createClient({
-  url: "redis://127.0.0.1:6379" // change if using cloud redis
+  url: process.env.REDIS_URL,
+  socket: {
+    tls: true,
+    rejectUnauthorized: false,
+  },
 });
 
-client.connect().catch(console.error);
+client.on("connect", () => {
+  console.log("✅ Redis connected");
+});
 
-client.on("connect", () => console.log("Redis connected"));
-client.on("error", (err) => console.error("Redis error:", err));
+client.on("error", (err) => {
+  console.error("❌ Redis error:", err);
+  throw new Error("STOP HERE");
+
+});
+console.log("REDIS_URL:", process.env.REDIS_URL);
+
+(async () => {
+  await client.connect();
+})();
 
 module.exports = client;
