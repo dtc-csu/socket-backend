@@ -2,7 +2,7 @@ require('dotenv').config(); // <-- Add this at the top
 
 const express = require("express");
 const cors = require("cors");
-const { AccessToken, VideoGrant } = require('livekit-server-sdk'); // <-- add this
+const { AccessToken } = require('livekit-server-sdk'); // <-- add this
 
 const app = express();
 app.use(cors());
@@ -29,18 +29,33 @@ app.use("/Doctors", doctorRoutes);
 
 // -------------------- LiveKit token route --------------------
 const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY || "devkey";
-const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET || "devsupersecret_123456789abcdefgh";
+const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET || "livekitthisissupersecret12345678910";
 const LIVEKIT_ROOM = process.env.LIVEKIT_ROOM || "test-room";
 
-app.get("/livekit/token/:identity", (req, res) => {
-  const identity = req.params.identity;
+app.get('/livekit/token/:identity', (req, res) => {
+  try {
+    const identity = req.params.identity;
 
-  const at = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, { identity });
-  const grant = new VideoGrant({ room: LIVEKIT_ROOM });
-  at.addGrant(grant);
+    const at = new AccessToken(
+      process.env.LIVEKIT_API_KEY,
+      process.env.LIVEKIT_API_SECRET,
+      { identity }
+    );
 
-  const token = at.toJwt();
-  res.json({ token });
+    // ✅ NEW WAY (NO VideoGrant)
+    at.addGrant({
+      roomJoin: true,
+      room: process.env.LIVEKIT_ROOM || 'test-room',
+      canPublish: true,
+      canSubscribe: true,
+      canPublishData: true,
+    });
+
+    res.json({ token: at.toJwt() });
+  } catch (err) {
+    console.error('LIVEKIT TOKEN ERROR:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 // ------------------------------------------------------------
 
