@@ -1,4 +1,3 @@
-throw new Error("🚨 NEW REDIS FILE LOADED");
 console.log("🔥 THIS REDIS FILE IS LOADED 🔥");
 
 const redis = require("redis");
