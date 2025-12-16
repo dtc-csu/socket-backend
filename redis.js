@@ -1,33 +1,33 @@
-console.log("🔥 THIS REDIS FILE IS LOADED 🔥");
+require('dotenv').config();
+const redis = require('redis');
 
-const redis = require("redis");
+console.log("🔥 THIS REDIS FILE IS LOADED 🔥");
 
 if (!process.env.REDIS_URL) {
   throw new Error("❌ REDIS_URL is not defined");
 }
-console.log("REDIS_URL:", process.env.REDIS_URL);
+
+let redisUrl = process.env.REDIS_URL;
+if (redisUrl.startsWith('redis://')) {
+  redisUrl = redisUrl.replace('redis://', 'rediss://'); // enforce TLS
+}
+
+console.log("REDIS_URL:", redisUrl);
 
 const client = redis.createClient({
-  url: process.env.REDIS_URL,
-  socket: {
-    tls: true,
-    rejectUnauthorized: false,
-  },
+  url: redisUrl,
+  socket: { tls: true, rejectUnauthorized: false },
 });
 
-client.on("connect", () => {
-  console.log("✅ Redis connected");
-});
-
-client.on("error", (err) => {
-  console.error("❌ Redis error:", err);
-  throw new Error("STOP HERE");
-
-});
-console.log("REDIS_URL:", process.env.REDIS_URL);
+client.on('connect', () => console.log('✅ Redis connected'));
+client.on('error', (err) => console.error('❌ Redis error:', err));
 
 (async () => {
-  await client.connect();
+  try {
+    await client.connect();
+  } catch (err) {
+    console.error('Failed to connect Redis:', err);
+  }
 })();
 
 module.exports = client;
