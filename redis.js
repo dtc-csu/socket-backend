@@ -7,10 +7,12 @@ if (!process.env.REDIS_URL) {
 const client = redis.createClient({
   url: process.env.REDIS_URL,
   socket: {
-    tls: process.env.REDIS_URL.startsWith("rediss://"),
+    tls: true,
     rejectUnauthorized: false,
+    connectTimeout: 10000,
   },
 });
+
 
 client.on("connect", () => console.log("✅ Redis connected"));
 client.on("error", (err) => console.error("❌ Redis error:", err));
