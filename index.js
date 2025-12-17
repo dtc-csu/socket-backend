@@ -19,6 +19,7 @@ const appointmentRoutes = require("./Routes/appointments");
 const doctorRoutes = require("./Routes/doctors");
 const patientRoutes = require("./Routes/patients");
 const chatRoute = require('./Routes/chat');
+const contactRoute = require('./Routes/contactpersonn');
 
 app.use('/ChatMessages', chatRoute); 
 // FIXED route paths (added leading slash)
@@ -26,6 +27,7 @@ app.use("/Users", usersRoutes);
 app.use("/Appointments", appointmentRoutes);
 app.use("/Patient", patientRoutes);
 app.use("/Doctors", doctorRoutes);
+app.use("/ContactPerson", contactRoute);
 
 // -------------------- LiveKit token route --------------------
 const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY || "devkey";
