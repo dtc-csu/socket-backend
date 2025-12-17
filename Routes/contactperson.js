@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const crud = require("../controllers/crud.controller");
+const crud = require("../Controllers/genericController");
 const poolPromise = require("../config/db");
 
 const controller = crud(poolPromise);
