@@ -15,6 +15,7 @@ app.get("/", (req, res) => {
 
 // import routes
 const usersRoutes = require("./Routes/Users");
+const drugsRoutes = require("./Routes/drugandmedicine");
 const appointmentRoutes = require("./Routes/appointments");
 const doctorRoutes = require("./Routes/doctors");
 const patientRoutes = require("./Routes/patients");
@@ -23,6 +24,7 @@ const contactRoute = require('./Routes/contactperson');
 const familyRoute = require('./Routes/familyinfo');
 
 app.use('/ChatMessages', chatRoute); 
+app.use("/DrugsAndMedicine", drugsRoutes);
 // FIXED route paths (added leading slash)
 app.use("/Users", usersRoutes);
 app.use("/Appointments", appointmentRoutes);
