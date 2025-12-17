@@ -19,7 +19,7 @@ const appointmentRoutes = require("./Routes/appointments");
 const doctorRoutes = require("./Routes/doctors");
 const patientRoutes = require("./Routes/patients");
 const chatRoute = require('./Routes/chat');
-const contactRoute = require('./Routes/contactpersonn');
+const contactRoute = require('./Routes/contactperson');
 
 app.use('/ChatMessages', chatRoute); 
 // FIXED route paths (added leading slash)
