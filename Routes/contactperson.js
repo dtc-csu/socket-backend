@@ -1,8 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const crud = require("../Controllers/genericController");
-const poolPromise = require("../config/db");
-
+const poolPromise = require("../db");
 const controller = crud(poolPromise);
 
 // GET all contact persons by UserID
