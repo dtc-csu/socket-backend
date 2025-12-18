@@ -125,4 +125,21 @@ router.post('/change-email', async (req, res) => {
   }
 });
 
+// ---------------------- GET ALL PATIENTS ----------------------
+router.get('/patients', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .query(`
+        SELECT pat.PatientID, u.FirstName, u.MiddleName, u.LastName
+        FROM Patient pat
+        INNER JOIN Users u ON u.UserID = pat.UserID
+        ORDER BY u.FirstName
+      `);
+    res.json(result.recordset);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

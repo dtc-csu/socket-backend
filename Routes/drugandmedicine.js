@@ -40,7 +40,7 @@ router.get("/patient/:patientIDNoAuto", async (req, res) => {
                u.FirstName, u.LastName
         FROM DrugsAndMedicine dm
         INNER JOIN Patient pat ON pat.PatientIDNoAuto = dm.PatientIDNoAuto
-        INNER JOIN [User] u ON u.UserID = pat.UserID
+        INNER JOIN [Users] u ON u.UserID = pat.UserID
         WHERE dm.PatientIDNoAuto = @patientID
         ORDER BY dm.CreationDate DESC
       `);
