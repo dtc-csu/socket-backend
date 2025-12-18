@@ -112,4 +112,27 @@ router.post('/', async (req, res) => {
   }
 });
 
+// Get appointments by patient ID
+router.get('/patient/:patientId', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+
+    const result = await pool.request()
+      .input('patientId', req.params.patientId)
+      .query(`
+        SELECT *
+        FROM Appointments
+        WHERE PatientID = @patientId
+        ORDER BY AppointmentDate DESC
+      `);
+
+    res.json(result.recordset);
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+});
+
 module.exports = router;
