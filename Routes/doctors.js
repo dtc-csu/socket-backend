@@ -21,4 +21,34 @@ router.get('/user/:userId', async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 });
+
+router.get('/by-role/:role', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const { role } = req.params;
+
+    const result = await pool.request()
+      .input('role', role)
+      .query(`
+        SELECT 
+          d.DoctorID,
+          d.specialty,
+          u.userid,
+          u.firstname,
+          u.middlename,
+          u.lastname
+        FROM Doctors d
+        INNER JOIN Users u ON d.UserID = u.userid
+        WHERE u.role = @role
+      `);
+
+    res.json(result.recordset);
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+});
+
 module.exports = router;
