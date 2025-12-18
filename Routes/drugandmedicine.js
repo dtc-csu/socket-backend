@@ -115,7 +115,47 @@ router.post("/", async (req, res) => {
 // -----------------------------
 // EDIT a prescription
 // -----------------------------
-router.put("/:id", controller.edit("DrugsAndMedicine", "DrugsAndMedicineId"));
+router.put("/:id", async (req, res) => {
+  const { PatientID, Quantity, Description, EndDate } = req.body;
+
+  try {
+    const pool = await poolPromise;
+
+    // Resolve PatientID → PatientIDNoAuto
+    const patient = await pool.request()
+      .input("PatientID", PatientID)
+      .query(`
+        SELECT PatientIDNoAuto FROM Patient WHERE PatientID = @PatientID
+      `);
+
+    if (patient.recordset.length === 0) {
+      return res.status(400).json({ error: "Patient not found" });
+    }
+
+    const patientIDNoAuto = patient.recordset[0].PatientIDNoAuto;
+
+    // Update DrugsAndMedicine
+    await pool.request()
+      .input("DrugsAndMedicineId", req.params.id)
+      .input("PatientIDNoAuto", patientIDNoAuto)
+      .input("Quantity", Quantity)
+      .input("Description", Description)
+      .input("EndDate", EndDate)
+      .query(`
+        UPDATE DrugsAndMedicine
+        SET PatientIDNoAuto = @PatientIDNoAuto,
+            Quantity = @Quantity,
+            Description = @Description,
+            EndDate = @EndDate
+        WHERE DrugsAndMedicineId = @DrugsAndMedicineId
+      `);
+
+    res.json({ message: "Prescription updated successfully" });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // -----------------------------
 // DELETE a prescription
