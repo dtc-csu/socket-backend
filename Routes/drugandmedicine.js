@@ -7,19 +7,34 @@ const controller = crud(poolPromise);
 // -----------------------------
 // GET all prescriptions (for doctors)
 // -----------------------------
+// GET all prescriptions (with PatientID + names)
 router.get("/", async (req, res) => {
   try {
     const pool = await poolPromise;
+
     const result = await pool.request().query(`
-      SELECT dm.DrugsAndMedicineId, dm.PatientID, dm.Quantity, dm.Description, dm.CreationDate, dm.EndDate,
-             u.FirstName, u.MiddleName, u.LastName
+      SELECT 
+        dm.DrugsAndMedicineId,
+        pat.PatientID,
+        dm.PatientIDNoAuto,
+        dm.Quantity,
+        dm.Description,
+        dm.CreationDate,
+        dm.EndDate,
+        u.FirstName,
+        u.MiddleName,
+        u.LastName
       FROM DrugsAndMedicine dm
       INNER JOIN Patient pat ON pat.PatientIDNoAuto = dm.PatientIDNoAuto
       INNER JOIN Users u ON u.userid = pat.UserID
       ORDER BY dm.CreationDate DESC
     `);
+
+    console.log("Prescription result:", result.recordset);  // <--- DEBUG
+
     res.json(result.recordset);
   } catch (err) {
+    console.error("Error fetching prescriptions:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
