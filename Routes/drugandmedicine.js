@@ -10,16 +10,14 @@ const controller = crud(poolPromise);
 router.get("/", async (req, res) => {
   try {
     const pool = await poolPromise;
-    const result = await pool.request()
-      .query(`
-        SELECT dm.DrugsAndMedicineId, dm.PatientIDNoAuto, dm.Quantity, dm.Description, dm.CreationDate, dm.EndDate,
-               pat.PatientIDNoAuto, pat.UserID,
-               u.FirstName, u.LastName
-        FROM DrugsAndMedicine dm
-        INNER JOIN Patient pat ON pat.PatientIDNoAuto = dm.PatientIDNoAuto
-        INNER JOIN [User] u ON u.UserID = pat.UserID
-        ORDER BY dm.CreationDate DESC
-      `);
+    const result = await pool.request().query(`
+      SELECT dm.DrugsAndMedicineId, dm.PatientID, dm.Quantity, dm.Description, dm.CreationDate, dm.EndDate,
+             u.FirstName, u.MiddleName, u.LastName
+      FROM DrugsAndMedicine dm
+      INNER JOIN Patient pat ON pat.PatientIDNoAuto = dm.PatientIDNoAuto
+      INNER JOIN Users u ON u.userid = pat.UserID
+      ORDER BY dm.CreationDate DESC
+    `);
     res.json(result.recordset);
   } catch (err) {
     res.status(500).json({ error: err.message });
