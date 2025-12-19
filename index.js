@@ -10,13 +10,15 @@ app.use(cors());
 app.use(express.json());
 
 const server = http.createServer(app);
+console.log("LIVEKIT_API_KEY:", process.env.LIVEKIT_API_KEY);
+console.log("LIVEKIT_API_SECRET:", process.env.LIVEKIT_API_SECRET);
 
 /* ===================== SOCKET.IO ===================== */
 const io = new Server(server, {
   cors: {
     origin: "*",
     methods: ["GET", "POST"],
-  },
+  },  
 });
 
 io.on("connection", (socket) => {
@@ -83,17 +85,30 @@ app.post("/livekit/token", (req, res) => {
   try {
     const { identity, room } = req.body || {};
 
-    console.log("💡 /livekit/token called with body:", req.body);
-
     if (!identity) {
       return res.status(400).json({ error: "identity is required" });
     }
 
-    const at = new AccessToken(
-      LIVEKIT_API_KEY,
-      LIVEKIT_API_SECRET,
-      { identity }
-    );
+    // Create AccessToken
+    const at = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, { identity });
+
+    // Add grant as plain object
+    at.addGrant({
+      room: room || LIVEKIT_ROOM,
+      roomJoin: true,
+      canPublish: true,
+      canSubscribe: true,
+    });
+
+    const token = at.toJwt();
+    console.log("✅ LiveKit token:", token);
+
+    res.json({ token }); // Must send { token: "string" }
+  } catch (err) {
+    console.error("❌ LIVEKIT TOKEN ERROR:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
     console.log("🔑 AccessToken created for:", identity);
 
