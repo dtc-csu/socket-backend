@@ -3,7 +3,6 @@ const express = require("express");
 const cors = require("cors");
 const http = require("http");
 const { Server } = require("socket.io");
-
 const { AccessToken, VideoGrant } = require("livekit-server-sdk");
 
 const app = express();
@@ -28,19 +27,13 @@ io.on("connection", (socket) => {
     console.log(`👤 User ${userId} joined room`);
   });
 
-  // Sending a message
   socket.on("sendMessage", (msg) => {
     console.log("📨 Message:", msg);
-
-    // Emit to receiver
     io.to(`user_${msg.ReceiverID}`).emit("receiveMessage", msg);
   });
 
-  // Mark message as read
   socket.on("messageRead", (data) => {
     console.log("📖 Message read:", data);
-
-    // Notify the sender that their message was read
     io.to(`user_${data.ReceiverID}`).emit("messageRead", data);
   });
 
@@ -77,31 +70,6 @@ const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY;
 const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET;
 const LIVEKIT_ROOM = process.env.LIVEKIT_ROOM || "test-room";
 
-app.get('/livekit/token/:identity', (req, res) => {
-  try {
-    const identity = req.params.identity;
-
-    const at = new AccessToken(
-      LIVEKIT_API_KEY,
-      LIVEKIT_API_SECRET,
-      { identity }
-    );
-
-    at.addGrant(
-      new VideoGrant({
-        room: LIVEKIT_ROOM,
-        canPublish: true,
-        canSubscribe: true,
-      })
-    );
-
-    res.json({ token: at.toJwt() });
-  } catch (err) {
-    console.error("LIVEKIT TOKEN ERROR:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-// ----------------------------------------------------
 app.post('/livekit/token', (req, res) => {
   try {
     const { identity, room } = req.body || {};
@@ -110,19 +78,12 @@ app.post('/livekit/token', (req, res) => {
       return res.status(400).json({ error: "identity is required" });
     }
 
-    const at = new AccessToken(
-      LIVEKIT_API_KEY,
-      LIVEKIT_API_SECRET,
-      { identity }
-    );
+    // Create LiveKit AccessToken
+    const at = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, { identity });
 
-    at.addGrant(
-      new VideoGrant({
-        room: room || LIVEKIT_ROOM,
-        canPublish: true,
-        canSubscribe: true,
-      })
-    );
+    // Create VideoGrant for the room
+    const grant = new VideoGrant({ room: room || LIVEKIT_ROOM });
+    at.addGrant(grant);
 
     res.json({ token: at.toJwt() });
   } catch (err) {
@@ -131,6 +92,7 @@ app.post('/livekit/token', (req, res) => {
   }
 });
 
+// -------------------- SERVER START ------------------
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 API + Socket.IO running on port ${PORT}`);
