@@ -105,7 +105,7 @@ app.post("/livekit/token", (req, res) => {
     console.error("❌ LIVEKIT TOKEN ERROR:", err);
     res.status(500).json({ error: err.message });
   } // <-- closes catch
-}); // <-- closes route
+  }); // <-- closes route
 
     console.log("🔑 AccessToken created for:", identity);
 
