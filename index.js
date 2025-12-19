@@ -111,9 +111,9 @@ app.post("/livekit/token", (req, res) => {
     console.log("✅ LiveKit token generated for:", identity);
     console.log("TOKEN TYPE →", typeof token);
     console.log("TOKEN VALUE →", token);
-
+    res.json({ token }); 
     // ✅ Send as string explicitly
-    res.send(JSON.stringify({ token: token.toString() }));
+    // res.send(JSON.stringify({ token: token.toString() }));
     
   } catch (err) {
     console.error("❌ LIVEKIT TOKEN ERROR:", err);
