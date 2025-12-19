@@ -106,9 +106,15 @@ app.post("/livekit/token", (req, res) => {
     });
 
     const token = at.toJwt();
-    console.log("✅ LiveKit token generated for:", identity);
 
-    res.json({ token });
+    // ✅ Debug logs
+    console.log("✅ LiveKit token generated for:", identity);
+    console.log("TOKEN TYPE →", typeof token);
+    console.log("TOKEN VALUE →", token);
+
+    // ✅ Send as string explicitly
+    res.send(JSON.stringify({ token: token.toString() }));
+    
   } catch (err) {
     console.error("❌ LIVEKIT TOKEN ERROR:", err);
     res.status(500).json({ error: err.message });
