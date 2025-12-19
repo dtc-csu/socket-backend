@@ -71,6 +71,11 @@ const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY;
 const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET;
 const LIVEKIT_ROOM = process.env.LIVEKIT_ROOM || "test-room";
 
+console.log("ENV CHECK →", {
+  key: process.env.LIVEKIT_API_KEY,
+  secret: process.env.LIVEKIT_API_SECRET,
+  cwd: process.cwd(),
+});
 /**
  * ✅ SDK v2.x CORRECT TOKEN ENDPOINT
  */
@@ -91,11 +96,6 @@ app.post("/livekit/token", (req, res) => {
     );
 
     console.log("🔑 AccessToken created for:", identity);
-console.log("ENV CHECK →", {
-  key: process.env.LIVEKIT_API_KEY,
-  secret: process.env.LIVEKIT_API_SECRET,
-  cwd: process.cwd(),
-});
 
     /**
      * ✅ IMPORTANT
