@@ -43,6 +43,13 @@ io.on("connection", (socket) => {
     console.log("❌ Socket disconnected:", socket.id);
   });
 });
+app.get("/debug-token", (req, res) => {
+  const at = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, { identity: "test-user" });
+  at.addGrant({ room: LIVEKIT_ROOM, roomJoin: true, canPublish: true, canSubscribe: true });
+  const token = at.toJwt();
+  console.log("DEBUG TOKEN →", token);
+  res.json({ token });
+});
 
 /* ===================== ROUTES ===================== */
 app.get("/", (req, res) => {
