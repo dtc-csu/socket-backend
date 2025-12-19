@@ -102,6 +102,29 @@ app.get('/livekit/token/:identity', (req, res) => {
   }
 });
 // ----------------------------------------------------
+app.post('/livekit/token', (req, res) => {
+  try {
+    const { identity, room } = req.body;
+    const at = new AccessToken(
+      LIVEKIT_API_KEY,
+      LIVEKIT_API_SECRET,
+      { identity }
+    );
+
+    at.addGrant(
+      new VideoGrant({
+        room: room || LIVEKIT_ROOM,
+        canPublish: true,
+        canSubscribe: true,
+      })
+    );
+
+    res.json({ token: at.toJwt() });
+  } catch (err) {
+    console.error("LIVEKIT TOKEN ERROR:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, "0.0.0.0", () => {
