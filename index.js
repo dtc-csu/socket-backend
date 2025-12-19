@@ -89,11 +89,7 @@ app.post("/livekit/token", (req, res) => {
       return res.status(400).json({ error: "identity is required" });
     }
 
-    const at = new AccessToken(
-      LIVEKIT_API_KEY,
-      LIVEKIT_API_SECRET,
-      { identity }
-    );
+    const at = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, { identity });
 
     at.addGrant({
       room: room || LIVEKIT_ROOM,
@@ -111,7 +107,6 @@ app.post("/livekit/token", (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 
 /* ===================== SERVER START ===================== */
 const PORT = process.env.PORT || 3000;
