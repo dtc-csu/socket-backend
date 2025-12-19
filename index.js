@@ -91,6 +91,11 @@ app.post("/livekit/token", (req, res) => {
     );
 
     console.log("🔑 AccessToken created for:", identity);
+console.log("ENV CHECK →", {
+  key: process.env.LIVEKIT_API_KEY,
+  secret: process.env.LIVEKIT_API_SECRET,
+  cwd: process.cwd(),
+});
 
     /**
      * ✅ IMPORTANT
