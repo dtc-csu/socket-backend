@@ -4,6 +4,7 @@ const cors = require("cors");
 const http = require("http");
 const { Server } = require("socket.io");
 const { AccessToken, grants } = require("livekit-server-sdk"); // correct import for v2+
+const { VideoGrant } = require("livekit-server-sdk/dist/grants"); 
 
 const app = express();
 app.use(cors());
