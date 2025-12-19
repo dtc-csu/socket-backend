@@ -104,7 +104,12 @@ app.get('/livekit/token/:identity', (req, res) => {
 // ----------------------------------------------------
 app.post('/livekit/token', (req, res) => {
   try {
-    const { identity, room } = req.body;
+    const { identity, room } = req.body || {};
+
+    if (!identity) {
+      return res.status(400).json({ error: "identity is required" });
+    }
+
     const at = new AccessToken(
       LIVEKIT_API_KEY,
       LIVEKIT_API_SECRET,
