@@ -3,8 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const http = require("http");
 const { Server } = require("socket.io");
-const { AccessToken, grants } = require("livekit-server-sdk"); // correct import for v2+
-const { VideoGrant } = require("livekit-server-sdk/dist/grants"); 
+const { AccessToken, grants } = require("livekit-server-sdk"); // correct v2+ import
 
 const app = express();
 app.use(cors());
@@ -100,14 +99,18 @@ app.post('/livekit/token', (req, res) => {
   }
 });
 
-// Optional GET route for testing
+// Optional GET route for testing in browser or Postman
 app.get('/livekit/token/:identity', (req, res) => {
   try {
     const identity = req.params.identity;
     if (!identity) return res.status(400).json({ error: "identity is required" });
 
     const at = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, { identity });
-    const videoGrant = new grants.VideoGrant({ room: LIVEKIT_ROOM, canPublish: true, canSubscribe: true });
+    const videoGrant = new grants.VideoGrant({
+      room: LIVEKIT_ROOM,
+      canPublish: true,
+      canSubscribe: true
+    });
     at.addGrant(videoGrant);
 
     res.json({ token: at.toJwt() });
