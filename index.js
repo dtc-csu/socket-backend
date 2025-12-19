@@ -113,7 +113,7 @@ app.post("/livekit/token", (req, res) => {
     console.log("TOKEN VALUE →", token);
 
     // ✅ Send as string explicitly
-    res.send(JSON.stringify({ token: token.toString() }));
+    // res.send(JSON.stringify({ token: token.toString() }));
     
   } catch (err) {
     console.error("❌ LIVEKIT TOKEN ERROR:", err);
