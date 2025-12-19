@@ -3,7 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const http = require("http");
 const { Server } = require("socket.io");
-const { AccessToken, VideoGrant } = require("livekit-server-sdk");
+const { AccessToken, grants } = require("livekit-server-sdk"); // updated import
 
 const app = express();
 app.use(cors());
@@ -81,9 +81,13 @@ app.post('/livekit/token', (req, res) => {
     // Create LiveKit AccessToken
     const at = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, { identity });
 
-    // Create VideoGrant for the room
-    const grant = new VideoGrant({ room: room || LIVEKIT_ROOM });
-    at.addGrant(grant);
+    // Create VideoGrant for the room (updated for SDK v2+)
+    const videoGrant = new grants.VideoGrant({
+      room: room || LIVEKIT_ROOM,
+      canPublish: true,
+      canSubscribe: true,
+    });
+    at.addGrant(videoGrant);
 
     res.json({ token: at.toJwt() });
   } catch (err) {
