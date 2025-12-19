@@ -3,7 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const http = require("http");
 const { Server } = require("socket.io");
-const { AccessToken, grants } = require("livekit-server-sdk"); // updated import
+const { AccessToken, grants } = require("livekit-server-sdk"); // correct import for v2+
 
 const app = express();
 app.use(cors());
@@ -47,6 +47,7 @@ app.get("/", (req, res) => {
   res.send("API is running");
 });
 
+// Import your route modules
 const usersRoutes = require("./Routes/Users");
 const drugsRoutes = require("./Routes/drugandmedicine");
 const appointmentRoutes = require("./Routes/appointments");
@@ -56,6 +57,7 @@ const chatRoute = require('./Routes/chat');
 const contactRoute = require("./Routes/contactperson");
 const familyRoute = require("./Routes/familyinfo");
 
+// Use the routes
 app.use('/ChatMessages', chatRoute);
 app.use("/DrugsAndMedicine", drugsRoutes);
 app.use("/Users", usersRoutes);
@@ -70,6 +72,7 @@ const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY;
 const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET;
 const LIVEKIT_ROOM = process.env.LIVEKIT_ROOM || "test-room";
 
+// POST route for LiveKit token
 app.post('/livekit/token', (req, res) => {
   try {
     const { identity, room } = req.body || {};
@@ -78,15 +81,32 @@ app.post('/livekit/token', (req, res) => {
       return res.status(400).json({ error: "identity is required" });
     }
 
-    // Create LiveKit AccessToken
+    // Create AccessToken
     const at = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, { identity });
 
-    // Create VideoGrant for the room (updated for SDK v2+)
+    // Add VideoGrant using SDK v2+
     const videoGrant = new grants.VideoGrant({
       room: room || LIVEKIT_ROOM,
       canPublish: true,
       canSubscribe: true,
     });
+    at.addGrant(videoGrant);
+
+    res.json({ token: at.toJwt() });
+  } catch (err) {
+    console.error("LIVEKIT TOKEN ERROR:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Optional GET route for testing
+app.get('/livekit/token/:identity', (req, res) => {
+  try {
+    const identity = req.params.identity;
+    if (!identity) return res.status(400).json({ error: "identity is required" });
+
+    const at = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, { identity });
+    const videoGrant = new grants.VideoGrant({ room: LIVEKIT_ROOM, canPublish: true, canSubscribe: true });
     at.addGrant(videoGrant);
 
     res.json({ token: at.toJwt() });
