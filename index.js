@@ -28,12 +28,10 @@ io.on("connection", (socket) => {
   });
 
   socket.on("sendMessage", (msg) => {
-    console.log("📨 Message:", msg);
     io.to(`user_${msg.ReceiverID}`).emit("receiveMessage", msg);
   });
 
   socket.on("messageRead", (data) => {
-    console.log("📖 Message read:", data);
     io.to(`user_${data.ReceiverID}`).emit("messageRead", data);
   });
 
@@ -41,12 +39,6 @@ io.on("connection", (socket) => {
     console.log("❌ Socket disconnected:", socket.id);
   });
 });
-
-// -------------------- ROUTES -------------------------
-app.get("/", (req, res) => {
-  res.send("API is running");
-});
-
 // Import your route modules
 const usersRoutes = require("./Routes/Users");
 const drugsRoutes = require("./Routes/drugandmedicine");
@@ -66,30 +58,26 @@ app.use("/Patient", patientRoutes);
 app.use("/Doctors", doctorRoutes);
 app.use("/ContactPerson", contactRoute);
 app.use("/FamilyInfo", familyRoute);
-
 // -------------------- LIVEKIT TOKEN ------------------
 const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY;
 const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET;
 const LIVEKIT_ROOM = process.env.LIVEKIT_ROOM || "test-room";
 
-// POST route for LiveKit token
 app.post('/livekit/token', (req, res) => {
   try {
     const { identity, room } = req.body || {};
+    if (!identity) return res.status(400).json({ error: "identity is required" });
 
-    if (!identity) {
-      return res.status(400).json({ error: "identity is required" });
-    }
-
-    // Create AccessToken
+    // Create token
     const at = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, { identity });
 
-    // Add VideoGrant using SDK v2+
+    // Add VideoGrant using grants.VideoGrant
     const videoGrant = new grants.VideoGrant({
       room: room || LIVEKIT_ROOM,
       canPublish: true,
-      canSubscribe: true,
+      canSubscribe: true
     });
+
     at.addGrant(videoGrant);
 
     res.json({ token: at.toJwt() });
@@ -99,7 +87,7 @@ app.post('/livekit/token', (req, res) => {
   }
 });
 
-// Optional GET route for testing in browser or Postman
+// Optional GET endpoint for testing
 app.get('/livekit/token/:identity', (req, res) => {
   try {
     const identity = req.params.identity;
@@ -120,7 +108,6 @@ app.get('/livekit/token/:identity', (req, res) => {
   }
 });
 
-// -------------------- SERVER START ------------------
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 API + Socket.IO running on port ${PORT}`);
