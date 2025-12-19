@@ -88,7 +88,7 @@ console.log("ENV CHECK →", {
 /**
  * ✅ SDK v2.x CORRECT TOKEN ENDPOINT
  */
-app.post("/livekit/token", (req, res) => {
+app.post("/livekit/token", async (req, res) => {
   try {
     const { identity, room } = req.body || {};
 
@@ -105,7 +105,7 @@ app.post("/livekit/token", (req, res) => {
       canSubscribe: true,
     });
 
-    const token = at.toJwt();
+    const token = await at.toJwt();
 
     // ✅ Debug logs
     console.log("✅ LiveKit token generated for:", identity);
