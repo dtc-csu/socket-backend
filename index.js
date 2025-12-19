@@ -1,28 +1,23 @@
 require('dotenv').config();
-
 const express = require("express");
 const cors = require("cors");
 const http = require("http");
 const { Server } = require("socket.io");
 
-const {
-  AccessToken,
-  VideoGrant
-} = require("livekit-server-sdk");
+const { AccessToken, VideoGrant } = require("livekit-server-sdk");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// -------------------- HTTP SERVER --------------------
 const server = http.createServer(app);
 
 // -------------------- SOCKET.IO ----------------------
 const io = new Server(server, {
   cors: {
     origin: "*",
-    methods: ["GET", "POST"]
-  }
+    methods: ["GET", "POST"],
+  },
 });
 
 io.on("connection", (socket) => {
@@ -33,11 +28,20 @@ io.on("connection", (socket) => {
     console.log(`👤 User ${userId} joined room`);
   });
 
+  // Sending a message
   socket.on("sendMessage", (msg) => {
     console.log("📨 Message:", msg);
 
-    // Send to receiver only
+    // Emit to receiver
     io.to(`user_${msg.ReceiverID}`).emit("receiveMessage", msg);
+  });
+
+  // Mark message as read
+  socket.on("messageRead", (data) => {
+    console.log("📖 Message read:", data);
+
+    // Notify the sender that their message was read
+    io.to(`user_${data.ReceiverID}`).emit("messageRead", data);
   });
 
   socket.on("disconnect", () => {
@@ -56,8 +60,8 @@ const appointmentRoutes = require("./Routes/appointments");
 const doctorRoutes = require("./Routes/doctors");
 const patientRoutes = require("./Routes/patients");
 const chatRoute = require('./Routes/chat');
-const contactRoute = require('./Routes/contactperson');
-const familyRoute = require('./Routes/familyinfo');
+const contactRoute = require("./Routes/contactperson");
+const familyRoute = require("./Routes/familyinfo");
 
 app.use('/ChatMessages', chatRoute);
 app.use("/DrugsAndMedicine", drugsRoutes);
@@ -100,7 +104,6 @@ app.get('/livekit/token/:identity', (req, res) => {
 // ----------------------------------------------------
 
 const PORT = process.env.PORT || 3000;
-
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 API + Socket.IO running on port ${PORT}`);
 });
