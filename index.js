@@ -84,15 +84,12 @@ console.log("ENV CHECK →", {
 app.post("/livekit/token", (req, res) => {
   try {
     const { identity, room } = req.body || {};
-
     if (!identity) {
       return res.status(400).json({ error: "identity is required" });
     }
 
-    // Create AccessToken
     const at = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, { identity });
 
-    // Add grant as plain object
     at.addGrant({
       room: room || LIVEKIT_ROOM,
       roomJoin: true,
@@ -101,14 +98,14 @@ app.post("/livekit/token", (req, res) => {
     });
 
     const token = at.toJwt();
-    console.log("✅ LiveKit token:", token);
+    console.log("✅ Token:", token);
 
-    res.json({ token }); // Must send { token: "string" }
+    res.json({ token }); // <-- this line ends the try block
   } catch (err) {
     console.error("❌ LIVEKIT TOKEN ERROR:", err);
     res.status(500).json({ error: err.message });
-  }
-});
+  } // <-- closes catch
+}); // <-- closes route
 
     console.log("🔑 AccessToken created for:", identity);
 
