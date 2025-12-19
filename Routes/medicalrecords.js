@@ -2,16 +2,25 @@ const express = require("express");
 const router = express.Router();
 const poolPromise = require("../db");
 
-// ✅ Get records by patient
+// ✅ Get cases by patient
 router.get("/patient/:patientId", async (req, res) => {
   try {
     const pool = await poolPromise;
     const result = await pool
       .request()
       .input("patientId", req.params.patientId)
-      .query(
-        "SELECT * FROM MedicalRecords WHERE PatientIDNoAuto = @patientId ORDER BY CreationDate DESC"
-      );
+      .query(`
+        SELECT 
+          PatientMedicalCaseID,
+          PatientIDNoAuto,
+          Description,
+          Notes,
+          CreationDate,
+          HasAdded
+        FROM PatientMedicalCases
+        WHERE PatientIDNoAuto = @patientId
+        ORDER BY CreationDate DESC
+      `);
 
     res.json(result.recordset);
   } catch (err) {
@@ -19,7 +28,7 @@ router.get("/patient/:patientId", async (req, res) => {
   }
 });
 
-// ✅ Add record
+// ✅ Add case
 router.post("/", async (req, res) => {
   try {
     const pool = await poolPromise;
@@ -27,13 +36,14 @@ router.post("/", async (req, res) => {
 
     await pool.request()
       .input("PatientIDNoAuto", r.PatientIDNoAuto)
-      .input("ChiefComplaint", r.ChiefComplaint)
-      .input("DiagnosisAssessment", r.DiagnosisAssessment)
-      .input("PlanManagement", r.PlanManagement)
+      .input("Description", r.Description)
+      .input("Notes", r.Notes)
+      .input("HasAdded", r.HasAdded ?? 1)
       .query(`
-        INSERT INTO MedicalRecords
-        (PatientIDNoAuto, ChiefComplaint, DiagnosisAssessment, PlanManagement)
-        VALUES (@PatientIDNoAuto, @ChiefComplaint, @DiagnosisAssessment, @PlanManagement)
+        INSERT INTO PatientMedicalCases
+          (PatientIDNoAuto, Description, Notes, HasAdded)
+        VALUES
+          (@PatientIDNoAuto, @Description, @Notes, @HasAdded)
       `);
 
     res.json({ success: true });
@@ -42,7 +52,7 @@ router.post("/", async (req, res) => {
   }
 });
 
-// ✅ Update record
+// ✅ Update case
 router.put("/:id", async (req, res) => {
   try {
     const pool = await poolPromise;
@@ -50,15 +60,14 @@ router.put("/:id", async (req, res) => {
 
     await pool.request()
       .input("id", req.params.id)
-      .input("ChiefComplaint", r.ChiefComplaint)
-      .input("DiagnosisAssessment", r.DiagnosisAssessment)
-      .input("PlanManagement", r.PlanManagement)
+      .input("Description", r.Description)
+      .input("Notes", r.Notes)
       .query(`
-        UPDATE MedicalRecords
-        SET ChiefComplaint=@ChiefComplaint,
-            DiagnosisAssessment=@DiagnosisAssessment,
-            PlanManagement=@PlanManagement
-        WHERE MedicalRecordsId=@id
+        UPDATE PatientMedicalCases
+        SET
+          Description = @Description,
+          Notes = @Notes
+        WHERE PatientMedicalCaseID = @id
       `);
 
     res.json({ success: true });
@@ -67,13 +76,16 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-// ✅ Delete
+// ✅ Delete case
 router.delete("/:id", async (req, res) => {
   try {
     const pool = await poolPromise;
     await pool.request()
       .input("id", req.params.id)
-      .query("DELETE FROM MedicalRecords WHERE MedicalRecordsId=@id");
+      .query(`
+        DELETE FROM PatientMedicalCases
+        WHERE PatientMedicalCaseID = @id
+      `);
 
     res.json({ success: true });
   } catch (err) {
