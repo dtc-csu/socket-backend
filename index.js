@@ -84,11 +84,16 @@ console.log("ENV CHECK →", {
 app.post("/livekit/token", (req, res) => {
   try {
     const { identity, room } = req.body || {};
+
     if (!identity) {
       return res.status(400).json({ error: "identity is required" });
     }
 
-    const at = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, { identity });
+    const at = new AccessToken(
+      LIVEKIT_API_KEY,
+      LIVEKIT_API_SECRET,
+      { identity }
+    );
 
     at.addGrant({
       room: room || LIVEKIT_ROOM,
@@ -98,31 +103,7 @@ app.post("/livekit/token", (req, res) => {
     });
 
     const token = at.toJwt();
-    console.log("✅ Token:", token);
-
-    res.json({ token }); // <-- this line ends the try block
-  } catch (err) {
-    console.error("❌ LIVEKIT TOKEN ERROR:", err);
-    res.status(500).json({ error: err.message });
-  } // <-- closes catch
-  }); // <-- closes route
-
-    console.log("🔑 AccessToken created for:", identity);
-
-    /**
-     * ✅ IMPORTANT
-     * In livekit-server-sdk v2.x,
-     * grants are PLAIN OBJECTS — NOT classes
-     */
-    at.addGrant({
-      room: room || LIVEKIT_ROOM,
-      roomJoin: true,
-      canPublish: true,
-      canSubscribe: true,
-    });
-
-    const token = at.toJwt();
-    console.log("✅ LiveKit token generated");
+    console.log("✅ LiveKit token generated for:", identity);
 
     res.json({ token });
   } catch (err) {
@@ -130,6 +111,7 @@ app.post("/livekit/token", (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 /* ===================== SERVER START ===================== */
 const PORT = process.env.PORT || 3000;
