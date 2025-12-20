@@ -8,18 +8,38 @@ if (!STREAM_API_KEY || !STREAM_API_SECRET) {
   process.exit(1);
 }
 
-const streamClient = StreamChat.getInstance(STREAM_API_KEY, STREAM_API_SECRET);
+const streamClient = StreamChat.getInstance(
+  STREAM_API_KEY,
+  STREAM_API_SECRET
+);
 
 /**
- * Generates a GetStream token for a given user
- * @param {string|number} userId
+ * Create / update Stream user, then generate token
+ * @param {Object} user
+ * @param {number|string} user.userid
+ * @param {string} user.firstname
+ * @param {string} user.lastname
+ * @param {string} user.role
  * @returns {string} token
  */
-function generateToken(userId) {
-  if (!userId) {
-    throw new Error("userId is required to generate token");
+async function generateToken(user) {
+  if (!user || !user.userid) {
+    throw new Error("user.userid is required");
   }
-  return streamClient.createToken(userId.toString());
+
+  const userId = user.userid.toString();
+
+  // 🔑 STEP 1: Ensure user exists in Stream
+  await streamClient.upsertUsers([
+    {
+      id: userId, // ← FROM YOUR USERS TABLE
+      name: `${user.firstname} ${user.lastname}`,
+      role: user.role || "user",
+    },
+  ]);
+
+  // 🔑 STEP 2: Generate token
+  return streamClient.createToken(userId);
 }
 
 module.exports = {
