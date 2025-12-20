@@ -34,7 +34,6 @@ async function generateToken(user) {
     {
       id: userId, // ← FROM YOUR USERS TABLE
       name: `${user.firstname} ${user.lastname}`,
-      role: user.role || "user",
     },
   ]);
 

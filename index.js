@@ -67,7 +67,6 @@ app.post("/stream/token", async (req, res) => {
       userid: user.userid,
       firstname: user.firstname,
       lastname: user.lastname,
-      role: user.role,
     });
 
     res.json({ token });
