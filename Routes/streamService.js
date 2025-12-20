@@ -34,11 +34,16 @@ async function generateToken(user) {
     {
       id: userId, // ← FROM YOUR USERS TABLE
       name: `${user.firstname} ${user.lastname}`,
+      role: user.role || "user",
     },
   ]);
 
   // 🔑 STEP 2: Generate token
-  return streamClient.createToken(userId);
+   return {
+    token,
+    userId,                  // add this
+    apiKey: process.env.STREAM_API_KEY  // add this
+  };
 }
 
 module.exports = {
