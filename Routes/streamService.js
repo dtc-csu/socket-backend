@@ -39,9 +39,8 @@ async function generateToken(user) {
   ]);
 
   // 🔑 STEP 2: Generate token
- const token = streamClient.createToken(userId);
 
-  return {token};
+  return {token: streamClient.createToken(userId)};
 }
 
 module.exports = {
