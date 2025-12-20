@@ -79,7 +79,16 @@ app.post("/stream/token", (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+const bodyParser = require('body-parser');
 
+// 👇 RAW BODY for Stream webhook ONLY
+app.use(
+  '/api/stream/webhook',
+  bodyParser.raw({ type: 'application/json' })
+);
+
+// 👇 Normal JSON for everything else
+app.use(bodyParser.json());
 /* ===================== HEALTH CHECK ===================== */
 app.get("/", (req, res) => {
   res.send("✅ API + Socket.IO + GetStream running");
@@ -94,6 +103,8 @@ app.use("/Patient", require("./Routes/patients"));
 app.use("/Doctors", require("./Routes/doctors"));
 app.use("/ContactPerson", require("./Routes/contactperson"));
 app.use("/FamilyInfo", require("./Routes/familyinfo"));
+const streamWebhook = require('./Routes/streamWebhook');
+app.use('/api/stream', streamWebhook);
 
 /* ===================== SERVER START ===================== */
 const PORT = process.env.PORT || 3000;

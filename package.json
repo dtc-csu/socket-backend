@@ -23,7 +23,9 @@
   "homepage": "https://github.com/Dtc-csu/socket-backend#readme",
   "dependencies": {
     "@sendgrid/mail": "^8.1.6",
+    "body-parser": "^2.2.1",
     "cors": "^2.8.5",
+    "crypto": "^1.0.1",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "livekit-server-sdk": "^2.15.0",
