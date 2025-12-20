@@ -69,7 +69,9 @@ app.post("/stream/token", async (req, res) => {
       lastname: user.lastname,
     });
 
-    res.json({ token });
+    res.json({ apiKey: STREAM_API_KEY,
+               userId: user.userid.toString(),
+               token });
   } catch (err) {
     console.error(err);
     res.status(400).json({ error: err.message });
