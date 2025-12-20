@@ -59,26 +59,24 @@ io.on("connection", (socket) => {
 });
 
 /* ===================== STREAM TOKEN ===================== */
-app.post("/stream/token", (req, res) => {
+app.post("/stream/token", async (req, res) => {
   try {
-    const { userId } = req.body;
+    const user = req.body;
 
-    if (!userId) {
-      return res.status(400).json({ error: "userId is required" });
-    }
-
-    const token = generateToken(userId);
-
-    res.json({
-      apiKey: STREAM_API_KEY,
-      userId: userId.toString(),
-      token,
+    const token = await generateToken({
+      userid: user.userid,
+      firstname: user.firstname,
+      lastname: user.lastname,
+      role: user.role,
     });
+
+    res.json({ token });
   } catch (err) {
-    console.error("❌ STREAM TOKEN ERROR:", err);
-    res.status(500).json({ error: err.message });
+    console.error(err);
+    res.status(400).json({ error: err.message });
   }
 });
+
 const bodyParser = require('body-parser');
 
 // 👇 RAW BODY for Stream webhook ONLY
