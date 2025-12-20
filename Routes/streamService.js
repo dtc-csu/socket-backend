@@ -39,7 +39,9 @@ async function generateToken(user) {
   ]);
 
   // 🔑 STEP 2: Generate token
-   return {
+ const token = streamClient.createToken(userId);
+
+  return {
     token,
     userId,                  // add this
     apiKey: process.env.STREAM_API_KEY  // add this
