@@ -5,7 +5,7 @@ const http = require("http");
 const { Server } = require("socket.io");
 
 // Import Stream service
-const { generateToken, STREAM_API_KEY } = require("./Routes/streamService");
+const { generateToken, STREAM_API_KEY, generateTokens } = require("./Routes/streamService");
 
 /* ===================== APP SETUP ===================== */
 const app = express();
@@ -63,7 +63,7 @@ app.post("/stream/token", async (req, res) => {
   try {
     const user = req.body;
 
-    const token = await generateToken({
+    const token = await generateTokens({
       userid: user.userid,
       firstname: user.firstname,
       lastname: user.lastname,
