@@ -17,7 +17,6 @@ const streamClient = StreamChat.getInstance(STREAM_API_KEY, STREAM_API_SECRET);
  * @param {number|string} user.userid
  * @param {string} user.firstname
  * @param {string} user.lastname
- * @param {string} user.role
  * @returns {Object} { chatToken, videoToken }
  */
 async function generateTokens(user) {
@@ -32,7 +31,6 @@ async function generateTokens(user) {
     {
       id: userId,
       name: `${user.firstname} ${user.lastname}`,
-      role: user.role || "user",
     },
   ]);
 
