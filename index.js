@@ -5,7 +5,7 @@ const http = require("http");
 const { Server } = require("socket.io");
 
 // Import Stream service
-const { generateToken, STREAM_API_KEY, generateTokens } = require("./Routes/streamService");
+const { generateToken, STREAM_API_KEY } = require("./Routes/streamService");
 
 /* ===================== APP SETUP ===================== */
 const app = express();
@@ -70,7 +70,7 @@ app.post("/stream/token", async (req, res) => {
     });
 
     res.json({ apiKey: STREAM_API_KEY,
-               userId: user.userid.toString(),
+               userId: user.userid,
                token });
   } catch (err) {
     console.error(err);
