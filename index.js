@@ -63,7 +63,7 @@ app.post("/stream/token", async (req, res) => {
   try {
     const user = req.body;
 
-    const token = await generateTokens({
+    const token = await generateToken({
       userid: user.userid,
       firstname: user.firstname,
       lastname: user.lastname,
