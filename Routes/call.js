@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { generateToken, STREAM_API_KEY } = require("../services/stream.service");
+const { generateToken, STREAM_API_KEY } = require("../Routes/streamService");
 
 /**
  * POST /api/call/token
