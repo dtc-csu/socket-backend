@@ -92,7 +92,8 @@ app.use(bodyParser.json());
 app.get("/", (req, res) => {
   res.send("✅ API + Socket.IO + GetStream running");
 });
-
+const callRoutes = require("./Routes/call");
+app.use("/api/call", callRoutes);
 /* ===================== YOUR EXISTING ROUTES ===================== */
 app.use("/ChatMessages", require("./Routes/chat"));
 app.use("/Users", require("./Routes/Users"));
