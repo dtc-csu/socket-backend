@@ -77,7 +77,10 @@ router.post('/', async (req, res) => {
 // ---------------------- PUT update appointment status ----------------------
 router.put('/:appointmentId', async (req, res) => {
   const appointmentId = req.params.appointmentId;
-  const { status } = req.body;
+  const { status, AppointmentDate } = req.body;
+
+  console.log("PUT request body:", req.body);
+  console.log("AppointmentDate received:", AppointmentDate);
 
   if (!status) {
     return res.status(400).json({ error: "Status is required" });
@@ -85,14 +88,29 @@ router.put('/:appointmentId', async (req, res) => {
 
   try {
     const pool = await poolPromise;
-    await pool.request()
+    let query = `
+      UPDATE Appointments
+      SET Status = @status
+      WHERE AppointmentID = @appointmentId
+    `;
+    let request = pool.request()
       .input("appointmentId", appointmentId)
-      .input("status", status)
-      .query(`
+      .input("status", status);
+
+    if (AppointmentDate) {
+      const parsedDate = new Date(AppointmentDate);
+      console.log("Parsed AppointmentDate:", parsedDate);
+      query = `
         UPDATE Appointments
-        SET Status = @status
+        SET Status = @status, AppointmentDate = @appointmentDate
         WHERE AppointmentID = @appointmentId
-      `);
+      `;
+      request = request.input("appointmentDate", parsedDate);
+    }
+
+    console.log("Executing query:", query);
+    const result = await request.query(query);
+    console.log("Query result:", result);
 
     res.json({ success: true, message: `Appointment ${appointmentId} updated to ${status}` });
   } catch (err) {
