@@ -142,9 +142,6 @@ router.post('/change-email', async (req, res) => {
 });
 
 // ---------------------- GET ALL PATIENTS ----------------------
-router.get('/patients', async (req, res) => {
-  try {
-    const pool = await poolPromise;
 // ---------------------- GET ALL PATIENTS ----------------------
 router.get('/patients', async (req, res) => {
   try {
