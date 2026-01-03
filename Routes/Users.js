@@ -46,6 +46,11 @@ router.post('/login', async (req, res) => {
     if (result.recordset.length > 0) {
       const user = result.recordset[0];
 
+      // If PatientID is null, set it to userid as string for patients
+      if (!user.PatientID) {
+        user.PatientID = user.userid.toString();
+      }
+
       return res.json({
         success: true,
         message: 'Login successful',
