@@ -98,14 +98,14 @@ router.put('/:appointmentId', async (req, res) => {
       .input("status", status);
 
     if (AppointmentDate) {
-      const parsedDate = new Date(AppointmentDate);
-      console.log("Parsed AppointmentDate:", parsedDate);
+      console.log("AppointmentDate received:", AppointmentDate);
       query = `
         UPDATE Appointments
         SET Status = @status, AppointmentDate = @appointmentDate
         WHERE AppointmentID = @appointmentId
       `;
-      request = request.input("appointmentDate", parsedDate);
+      request = request.input("appointmentDate", AppointmentDate);
+      console.log("Input added for appointmentDate:", AppointmentDate);
     }
 
     console.log("Executing query:", query);
