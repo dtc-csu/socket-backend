@@ -46,9 +46,20 @@ router.post('/login', async (req, res) => {
     if (result.recordset.length > 0) {
       const user = result.recordset[0];
 
-      // If PatientID is null, set it to userid as string for patients
+      // If PatientID is null, try to get it from Patient table
       if (!user.PatientID) {
-        user.PatientID = user.userid.toString();
+        try {
+          const patientResult = await pool.request()
+            .input('userId', user.userid)
+            .query('SELECT PatientID FROM Patient WHERE UserID = @userId');
+          if (patientResult.recordset.length > 0) {
+            user.PatientID = patientResult.recordset[0].PatientID;
+          } else {
+            user.PatientID = user.userid.toString(); // fallback
+          }
+        } catch (e) {
+          user.PatientID = user.userid.toString(); // fallback
+        }
       }
 
       return res.json({
@@ -134,9 +145,13 @@ router.post('/change-email', async (req, res) => {
 router.get('/patients', async (req, res) => {
   try {
     const pool = await poolPromise;
+// ---------------------- GET ALL PATIENTS ----------------------
+router.get('/patients', async (req, res) => {
+  try {
+    const pool = await poolPromise;
     const result = await pool.request()
       .query(`
-        SELECT pat.PatientID, u.FirstName, u.MiddleName, u.LastName
+        SELECT pat.PatientID, u.UserID, u.FirstName, u.MiddleName, u.LastName
         FROM Patient pat
         INNER JOIN Users u ON u.UserID = pat.UserID
         ORDER BY u.FirstName

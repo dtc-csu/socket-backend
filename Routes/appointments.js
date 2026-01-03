@@ -119,4 +119,110 @@ router.put('/:appointmentId', async (req, res) => {
   }
 });
 
+// ---------------------- GET all appointment follow-ups ----------------------
+router.get('/followups', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().query(`
+      SELECT
+        followUpId,
+        appointmentId,
+        patientId,
+        followUpDate,
+        remarks,
+        nextFollowUpDate,
+        createdAt
+      FROM AppointmentFollowUps
+      ORDER BY followUpDate DESC
+    `);
+    res.json(result.recordset);
+  } catch (err) {
+    console.error("Error fetching follow-ups:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------- GET follow-ups by appointment ID ----------------------
+router.get('/followups/appointment/:appointmentId', async (req, res) => {
+  const appointmentId = req.params.appointmentId;
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('appointmentId', appointmentId)
+      .query(`
+        SELECT *
+        FROM AppointmentFollowUps
+        WHERE appointmentId = @appointmentId
+        ORDER BY followUpDate DESC
+      `);
+    res.json(result.recordset);
+  } catch (err) {
+    console.error("Error fetching appointment follow-ups:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------- POST create a new follow-up ----------------------
+router.post('/followups', async (req, res) => {
+  const { appointmentId, patientId, followUpDate, remarks, nextFollowUpDate } = req.body;
+
+  if (!appointmentId || !patientId || !followUpDate || !remarks) {
+    return res.status(400).json({ error: "appointmentId, patientId, followUpDate, and remarks are required" });
+  }
+
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input("appointmentId", appointmentId)
+      .input("patientId", patientId)
+      .input("followUpDate", new Date(followUpDate))
+      .input("remarks", remarks)
+      .input("nextFollowUpDate", nextFollowUpDate ? new Date(nextFollowUpDate) : null)
+      .query(`
+        INSERT INTO AppointmentFollowUps (appointmentId, patientId, followUpDate, remarks, nextFollowUpDate, createdAt)
+        VALUES (@appointmentId, @patientId, @followUpDate, @remarks, @nextFollowUpDate, GETDATE());
+        SELECT SCOPE_IDENTITY() AS followUpId;
+      `);
+
+    const newFollowUpId = result.recordset[0].followUpId;
+    res.json({ success: true, followUpId: newFollowUpId });
+  } catch (err) {
+    console.error("Error creating follow-up:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------- PUT update follow-up ----------------------
+router.put('/followups/:followUpId', async (req, res) => {
+  const followUpId = req.params.followUpId;
+  const { remarks, nextFollowUpDate } = req.body;
+
+  try {
+    const pool = await poolPromise;
+    let query = `
+      UPDATE AppointmentFollowUps
+      SET remarks = @remarks
+      WHERE followUpId = @followUpId
+    `;
+    let request = pool.request()
+      .input("followUpId", followUpId)
+      .input("remarks", remarks);
+
+    if (nextFollowUpDate) {
+      query = `
+        UPDATE AppointmentFollowUps
+        SET remarks = @remarks, nextFollowUpDate = @nextFollowUpDate
+        WHERE followUpId = @followUpId
+      `;
+      request = request.input("nextFollowUpDate", new Date(nextFollowUpDate));
+    }
+
+    const result = await request.query(query);
+    res.json({ success: true, message: `Follow-up ${followUpId} updated` });
+  } catch (err) {
+    console.error("Error updating follow-up:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
