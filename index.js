@@ -103,8 +103,11 @@ app.use("/Patient", require("./Routes/patients"));
 app.use("/Doctors", require("./Routes/doctors"));
 app.use("/ContactPerson", require("./Routes/contactperson"));
 app.use("/FamilyInfo", require("./Routes/familyinfo"));
+app.use("/Dental", require("./Routes/dental"));
 const streamWebhook = require('./Routes/streamWebhook');
 app.use('/api/stream', streamWebhook);
+const generic = require("./Routes/fcm_generic");
+app.use("/api/generic", generic);
 
 /* ===================== SERVER START ===================== */
 const PORT = process.env.PORT || 3000;
