@@ -20,11 +20,24 @@ router.delete('/:id', generic.delete("Users", "userid"));
 router.post('/forgot-password', forgotController.forgotPassword);
 
 // ----------------------------------------------------
+// SEND SMS OTP
+// ----------------------------------------------------
+router.post('/send-sms-otp', forgotController.sendSmsOtp);
+
+// ----------------------------------------------------
 // RESET PASSWORD (Flutter App)
 // ----------------------------------------------------
 router.post('/reset-password', forgotController.resetPassword);
-// ADD THIS:
+
+// ----------------------------------------------------
+// VERIFY OTP (Email)
+// ----------------------------------------------------
 router.post('/verify-otp', forgotController.verifyOtp);
+
+// ----------------------------------------------------
+// VERIFY SMS OTP
+// ----------------------------------------------------
+router.post('/verify-sms-otp', forgotController.verifySmsOtp);
 
 // ----------------------------------------------------
 // LOGIN ROUTE
