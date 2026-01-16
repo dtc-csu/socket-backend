@@ -141,6 +141,24 @@ router.post('/change-email', async (req, res) => {
   }
 });
 
+// ---------------------- GET PATIENT ID NO AUTO FROM USER ID ----------------------
+router.get('/patient-id-no-auto/:userId', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('userId', req.params.userId)
+      .query('SELECT PatientIDNoAuto FROM Patient WHERE UserID = @userId');
+
+    if (result.recordset.length > 0) {
+      res.json({ PatientIDNoAuto: result.recordset[0].PatientIDNoAuto });
+    } else {
+      res.status(404).json({ error: 'Patient not found' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ---------------------- GET ALL PATIENTS ----------------------
 // ---------------------- GET ALL PATIENTS ----------------------
 router.get('/patients', async (req, res) => {

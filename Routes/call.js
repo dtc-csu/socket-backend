@@ -64,46 +64,46 @@ router.post("/start", async (req, res) => {
       });
     }
 
-    // Send FCM high-priority data message
-    const message = {
-      token: fcmToken,
-      data: {
-        type: "incoming_call",
-        callerId: callerId.toString(),
-        calleeId: calleeId.toString(),
-        callerName: callerName || "Unknown",
-        callId: callId,
-        callType: callType || "video", // video or audio
-        timestamp: Date.now().toString(),
-      },
-      android: {
-        priority: "high",
-        ttl: 0, // Don't expire
-        data: {
-          // Additional data for Android
-          click_action: "FLUTTER_NOTIFICATION_CLICK",
-        },
-      },
-      apns: {
-        headers: {
-          "apns-priority": "10", // High priority
-          "apns-push-type": "alert",
-        },
-        payload: {
-          aps: {
-            alert: {
-              title: "Incoming Call",
-              body: `Call from ${callerName}`,
-            },
-            sound: "default",
-            badge: 1,
-          },
-        },
-      },
-    };
+    // FCM notification hidden for outgoing calls
+    // const message = {
+    //   token: fcmToken,
+    //   data: {
+    //     type: "incoming_call",
+    //     callerId: callerId.toString(),
+    //     calleeId: calleeId.toString(),
+    //     callerName: callerName || "Unknown",
+    //     callId: callId,
+    //     callType: callType || "video", // video or audio
+    //     timestamp: Date.now().toString(),
+    //   },
+    //   android: {
+    //     priority: "high",
+    //     ttl: 0, // Don't expire
+    //     data: {
+    //       // Additional data for Android
+    //       click_action: "FLUTTER_NOTIFICATION_CLICK",
+    //     },
+    //   },
+    //   apns: {
+    //     headers: {
+    //       "apns-priority": "10", // High priority
+    //       "apns-push-type": "alert",
+    //     },
+    //     payload: {
+    //       aps: {
+    //         alert: {
+    //           title: "Incoming Call",
+    //           body: `Call from ${callerName}`,
+    //         },
+    //         sound: "default",
+    //         badge: 1,
+    //       },
+    //     },
+    //   },
+    // };
 
-    const response = await admin.messaging().send(message);
-    console.log("✅ FCM call notification sent:", response);
+    // const response = await admin.messaging().send(message);
+    // console.log("✅ FCM call notification sent:", response);
 
     res.json({
       success: true,
