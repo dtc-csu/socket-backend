@@ -7,7 +7,7 @@ router.get("/patient/:patientId", async (req, res) => {
   try {
     const pool = await poolPromise;
 
-    // First, get PatientIDNoAuto from Patient table using PatientID
+    // First, get PatientIDNoAuto from Patient table using UserID
     const patientResult = await pool
       .request()
       .input("patientId", req.params.patientId)

@@ -7,11 +7,11 @@ router.get("/patient/:patientId", async (req, res) => {
   try {
     const pool = await poolPromise;
 
-    // First, get PatientIDNoAuto from Patient table using PatientID
+    // First, get PatientIDNoAuto from Patient table using UserID
     const patientResult = await pool
       .request()
       .input("patientId", req.params.patientId)
-      .query("SELECT PatientIDNoAuto FROM Patient WHERE PatientID = @patientId");
+      .query("SELECT PatientIDNoAuto FROM Patient WHERE UserID = @patientId");
 
     if (patientResult.recordset.length === 0) {
       return res.status(404).json({ message: "Patient not found" });
