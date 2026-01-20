@@ -2,23 +2,31 @@ const express = require("express");
 const router = express.Router();
 const poolPromise = require("../db");
 
-// ✅ Get cases by patient
+// ✅ Get records by patient
 router.get("/patient/:patientId", async (req, res) => {
   try {
     const pool = await poolPromise;
-    const result = await pool
+
+    // First, get PatientIDNoAuto from Patient table using PatientID
+    const patientResult = await pool
       .request()
       .input("patientId", req.params.patientId)
+      .query("SELECT PatientIDNoAuto FROM Patient WHERE PatientID = @patientId");
+
+    if (patientResult.recordset.length === 0) {
+      return res.status(404).json({ message: "Patient not found" });
+    }
+
+    const patientIdNoAuto = patientResult.recordset[0].PatientIDNoAuto;
+
+    // Then, get medical records using PatientIDNoAuto
+    const result = await pool
+      .request()
+      .input("patientIdNoAuto", patientIdNoAuto)
       .query(`
-        SELECT 
-          PatientMedicalCaseID,
-          PatientIDNoAuto,
-          Description,
-          Notes,
-          CreationDate,
-          HasAdded
-        FROM PatientMedicalCases
-        WHERE PatientIDNoAuto = @patientId
+        SELECT TOP (1000) [MedicalRecordsId], [PatientIDNoAuto], [ChiefComplaint], [HistoryofPresentIllness], [Constitutional], [HEENT], [Cardiovascular], [Respiratory], [Gastrointestinal], [Genitourinary], [Musculoskeletal], [Skin], [Psychiatric], [EndocrineHematologic], [AllergicImmunologic], [DiagnosisAssessment], [PlanManagement], [PastMedicalandMedicationHistory], [ObstetricandGynecologicHistory], [FamilyHistory], [CreationDate], [EndDate]
+        FROM MedicalRecords
+        WHERE PatientIDNoAuto = @patientIdNoAuto
         ORDER BY CreationDate DESC
       `);
 
@@ -28,7 +36,7 @@ router.get("/patient/:patientId", async (req, res) => {
   }
 });
 
-// ✅ Add case
+// ✅ Add record
 router.post("/", async (req, res) => {
   try {
     const pool = await poolPromise;
@@ -36,14 +44,29 @@ router.post("/", async (req, res) => {
 
     await pool.request()
       .input("PatientIDNoAuto", r.PatientIDNoAuto)
-      .input("Description", r.Description)
-      .input("Notes", r.Notes)
-      .input("HasAdded", r.HasAdded ?? 1)
+      .input("ChiefComplaint", r.ChiefComplaint)
+      .input("HistoryofPresentIllness", r.HistoryofPresentIllness)
+      .input("Constitutional", r.Constitutional)
+      .input("HEENT", r.HEENT)
+      .input("Cardiovascular", r.Cardiovascular)
+      .input("Respiratory", r.Respiratory)
+      .input("Gastrointestinal", r.Gastrointestinal)
+      .input("Genitourinary", r.Genitourinary)
+      .input("Musculoskeletal", r.Musculoskeletal)
+      .input("Skin", r.Skin)
+      .input("Psychiatric", r.Psychiatric)
+      .input("EndocrineHematologic", r.EndocrineHematologic)
+      .input("AllergicImmunologic", r.AllergicImmunologic)
+      .input("DiagnosisAssessment", r.DiagnosisAssessment)
+      .input("PlanManagement", r.PlanManagement)
+      .input("PastMedicalandMedicationHistory", r.PastMedicalandMedicationHistory)
+      .input("ObstetricandGynecologicHistory", r.ObstetricandGynecologicHistory)
+      .input("FamilyHistory", r.FamilyHistory)
       .query(`
-        INSERT INTO PatientMedicalCases
-          (PatientIDNoAuto, Description, Notes, HasAdded)
+        INSERT INTO MedicalRecords
+          (PatientIDNoAuto, ChiefComplaint, HistoryofPresentIllness, Constitutional, HEENT, Cardiovascular, Respiratory, Gastrointestinal, Genitourinary, Musculoskeletal, Skin, Psychiatric, EndocrineHematologic, AllergicImmunologic, DiagnosisAssessment, PlanManagement, PastMedicalandMedicationHistory, ObstetricandGynecologicHistory, FamilyHistory)
         VALUES
-          (@PatientIDNoAuto, @Description, @Notes, @HasAdded)
+          (@PatientIDNoAuto, @ChiefComplaint, @HistoryofPresentIllness, @Constitutional, @HEENT, @Cardiovascular, @Respiratory, @Gastrointestinal, @Genitourinary, @Musculoskeletal, @Skin, @Psychiatric, @EndocrineHematologic, @AllergicImmunologic, @DiagnosisAssessment, @PlanManagement, @PastMedicalandMedicationHistory, @ObstetricandGynecologicHistory, @FamilyHistory)
       `);
 
     res.json({ success: true });
@@ -76,15 +99,15 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-// ✅ Delete case
+// ✅ Delete record
 router.delete("/:id", async (req, res) => {
   try {
     const pool = await poolPromise;
     await pool.request()
       .input("id", req.params.id)
       .query(`
-        DELETE FROM PatientMedicalCases
-        WHERE PatientMedicalCaseID = @id
+        DELETE FROM MedicalRecords
+        WHERE MedicalRecordsId = @id
       `);
 
     res.json({ success: true });

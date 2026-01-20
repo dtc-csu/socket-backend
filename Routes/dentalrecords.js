@@ -6,11 +6,25 @@ const poolPromise = require("../db");
 router.get("/patient/:patientId", async (req, res) => {
   try {
     const pool = await poolPromise;
-    const result = await pool
+
+    // First, get PatientIDNoAuto from Patient table using PatientID
+    const patientResult = await pool
       .request()
       .input("patientId", req.params.patientId)
+      .query("SELECT PatientIDNoAuto FROM Patient WHERE PatientID = @patientId");
+
+    if (patientResult.recordset.length === 0) {
+      return res.status(404).json({ message: "Patient not found" });
+    }
+
+    const patientIdNoAuto = patientResult.recordset[0].PatientIDNoAuto;
+
+    // Then, get dental records using PatientIDNoAuto
+    const result = await pool
+      .request()
+      .input("patientIdNoAuto", patientIdNoAuto)
       .query(
-        "SELECT * FROM DentalRecords WHERE PatientIDNoAuto = @patientId ORDER BY CreationDate DESC"
+        "SELECT TOP (1000) [DentalRecordId], [PatientIDNoAuto], [DentalService], [Medication], [CreationDate], [EndDate] FROM DentalRecords WHERE PatientIDNoAuto = @patientIdNoAuto ORDER BY CreationDate DESC"
       );
 
     res.json(result.recordset);
