@@ -24,8 +24,30 @@ router.get("/patient/:patientId", async (req, res) => {
       .request()
       .input("patientIdNoAuto", patientIdNoAuto)
       .query(`
-        SELECT TOP (1000) [MedicalRecordsId], [PatientIDNoAuto], [ChiefComplaint], [HistoryofPresentIllness], [Constitutional], [HEENT], [Cardiovascular], [Respiratory], [Gastrointestinal], [Genitourinary], [Musculoskeletal], [Skin], [Psychiatric], [EndocrineHematologic], [AllergicImmunologic], [DiagnosisAssessment], [PlanManagement], [PastMedicalandMedicationHistory], [ObstetricandGynecologicHistory], [FamilyHistory], [CreationDate], [EndDate]
-        FROM MedicalRecords
+        SELECT TOP (1000)
+          PatientMedicalCaseID as MedicalRecordsId,
+          PatientIDNoAuto,
+          Description as ChiefComplaint,
+          Notes as HistoryofPresentIllness,
+          '' as Constitutional,
+          '' as HEENT,
+          '' as Cardiovascular,
+          '' as Respiratory,
+          '' as Gastrointestinal,
+          '' as Genitourinary,
+          '' as Musculoskeletal,
+          '' as Skin,
+          '' as Psychiatric,
+          '' as EndocrineHematologic,
+          '' as AllergicImmunologic,
+          '' as DiagnosisAssessment,
+          '' as PlanManagement,
+          '' as PastMedicalandMedicationHistory,
+          '' as ObstetricandGynecologicHistory,
+          '' as FamilyHistory,
+          CreationDate,
+          '' as EndDate
+        FROM PatientMedicalCases
         WHERE PatientIDNoAuto = @patientIdNoAuto
         ORDER BY CreationDate DESC
       `);
