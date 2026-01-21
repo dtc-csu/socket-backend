@@ -39,10 +39,64 @@ router.get("/patient/:id", async (req, res) => {
 });
 
 // ADD family info
-router.post("/", controller.add("PatientFamilyInfo", "PatientFamilyInfoId"));
+router.post("/", async (req, res) => {
+  try {
+    const pool = await poolPromise;
+
+    // Get PatientIDNoAuto from Patient table using PatientID
+    const patientResult = await pool
+      .request()
+      .input("patientId", req.body.PatientID)
+      .query("SELECT PatientIDNoAuto FROM Patient WHERE PatientID = @patientId");
+
+    if (patientResult.recordset.length === 0) {
+      return res.status(404).json({ message: "Patient not found" });
+    }
+
+    const patientIdNoAuto = patientResult.recordset[0].PatientIDNoAuto;
+
+    // Add PatientIDNoAuto to the request body
+    req.body.PatientIDNoAuto = patientIdNoAuto;
+
+    // Remove PatientID from the body as it's not needed in the table
+    delete req.body.PatientID;
+
+    // Use the generic controller to add
+    await controller.add("PatientFamilyInfo", "PatientFamilyInfoId")(req, res);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
 
 // EDIT family info
-router.put("/:id", controller.edit("PatientFamilyInfo", "PatientFamilyInfoId"));
+router.put("/:id", async (req, res) => {
+  try {
+    const pool = await poolPromise;
+
+    // Get PatientIDNoAuto from Patient table using PatientID
+    const patientResult = await pool
+      .request()
+      .input("patientId", req.body.PatientID)
+      .query("SELECT PatientIDNoAuto FROM Patient WHERE PatientID = @patientId");
+
+    if (patientResult.recordset.length === 0) {
+      return res.status(404).json({ message: "Patient not found" });
+    }
+
+    const patientIdNoAuto = patientResult.recordset[0].PatientIDNoAuto;
+
+    // Add PatientIDNoAuto to the request body
+    req.body.PatientIDNoAuto = patientIdNoAuto;
+
+    // Remove PatientID from the body as it's not needed in the table
+    delete req.body.PatientID;
+
+    // Use the generic controller to edit
+    await controller.edit("PatientFamilyInfo", "PatientFamilyInfoId")(req, res);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
 
 // DELETE family info
 router.delete("/:id", controller.delete("PatientFamilyInfo", "PatientFamilyInfoId"));
