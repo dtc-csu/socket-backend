@@ -1,93 +1,102 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-const poolPromise = require("../db");
+const poolPromise = require('../db');
 
-// ✅ Get by patient
-router.get("/patient/:patientId", async (req, res) => {
+// ---------------------- GET all dental records ----------------------
+router.get('/', async (req, res) => {
   try {
     const pool = await poolPromise;
-
-    // First, get PatientIDNoAuto from Patient table using PatientID
-    const patientResult = await pool
-      .request()
-      .input("patientId", req.params.patientId)
-      .query("SELECT PatientIDNoAuto FROM Patient WHERE PatientID = @patientId");
-
-    if (patientResult.recordset.length === 0) {
-      return res.status(404).json({ message: "Patient not found" });
-    }
-
-    const patientIdNoAuto = patientResult.recordset[0].PatientIDNoAuto;
-
-    // Then, get dental records using PatientIDNoAuto
-    const result = await pool
-      .request()
-      .input("patientIdNoAuto", patientIdNoAuto)
-      .query(
-        "SELECT TOP (1000) [DentalRecordId], [PatientIDNoAuto], [DentalService], [Medication], [CreationDate], [EndDate] FROM DentalRecords WHERE PatientIDNoAuto = @patientIdNoAuto ORDER BY CreationDate DESC"
-      );
-
+    const result = await pool.request().query(`
+      SELECT
+        DentalRecordID,
+        PatientID,
+        DentalService,
+        Medication,
+        CreationDate,
+        EndDate
+      FROM DentalRecord
+      ORDER BY CreationDate DESC
+    `);
     res.json(result.recordset);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error("Error fetching dental records:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-// ✅ Add
-router.post("/", async (req, res) => {
+// ---------------------- GET dental records by patient ID ----------------------
+router.get('/patient/:patientId', async (req, res) => {
+  const patientId = req.params.patientId;
   try {
     const pool = await poolPromise;
-    const r = req.body;
-
-    await pool.request()
-      .input("PatientIDNoAuto", r.PatientIDNoAuto)
-      .input("DentalService", r.DentalService)
-      .input("Medication", r.Medication)
+    const result = await pool.request()
+      .input('patientId', patientId)
       .query(`
-        INSERT INTO DentalRecords
-        (PatientIDNoAuto, DentalService, Medication)
-        VALUES (@PatientIDNoAuto, @DentalService, @Medication)
+        SELECT *
+        FROM DentalRecord
+        WHERE PatientID = @patientId
+        ORDER BY CreationDate DESC
+      `);
+    res.json(result.recordset);
+  } catch (err) {
+    console.error("Error fetching patient dental records:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------- POST create a new dental record ----------------------
+router.post('/', async (req, res) => {
+  const {
+    PatientID,
+    DentalService,
+    Medication,
+    CreationDate,
+    EndDate
+  } = req.body;
+
+  if (!PatientID || !CreationDate) {
+    return res.status(400).json({ error: "PatientID and CreationDate are required" });
+  }
+
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input("PatientID", PatientID)
+      .input("DentalService", DentalService || null)
+      .input("Medication", Medication || null)
+      .input("CreationDate", new Date(CreationDate))
+      .input("EndDate", EndDate ? new Date(EndDate) : null)
+      .query(`
+        INSERT INTO DentalRecord (PatientID, DentalService, Medication, CreationDate, EndDate)
+        VALUES (@PatientID, @DentalService, @Medication, @CreationDate, @EndDate);
+        SELECT SCOPE_IDENTITY() AS DentalRecordID;
       `);
 
-    res.json({ success: true });
+    const newDentalRecordId = result.recordset[0].DentalRecordID;
+    res.json({ success: true, DentalRecordID: newDentalRecordId });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error("Error creating dental record:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-// ✅ Update
-router.put("/:id", async (req, res) => {
+// ---------------------- DELETE dental record ----------------------
+router.delete('/:dentalRecordId', async (req, res) => {
+  const dentalRecordId = req.params.dentalRecordId;
   try {
     const pool = await poolPromise;
-
+    // First delete related DentalTooth records
     await pool.request()
-      .input("id", req.params.id)
-      .input("DentalService", req.body.DentalService)
-      .input("Medication", req.body.Medication)
-      .query(`
-        UPDATE DentalRecords
-        SET DentalService=@DentalService,
-            Medication=@Medication
-        WHERE DentalRecordId=@id
-      `);
-
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
-// ✅ Delete
-router.delete("/:id", async (req, res) => {
-  try {
-    const pool = await poolPromise;
+      .input('dentalRecordId', dentalRecordId)
+      .query('DELETE FROM DentalTooth WHERE DentalRecordID = @dentalRecordId');
+    // Then delete the DentalRecord
     await pool.request()
-      .input("id", req.params.id)
-      .query("DELETE FROM DentalRecords WHERE DentalRecordId=@id");
-
-    res.json({ success: true });
+      .input('dentalRecordId', dentalRecordId)
+      .query('DELETE FROM DentalRecord WHERE DentalRecordID = @dentalRecordId');
+    res.json({ success: true, message: `Dental record ${dentalRecordId} deleted` });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error("Error deleting dental record:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 
