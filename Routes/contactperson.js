@@ -12,7 +12,7 @@ router.get("/Users/:id", async (req, res) => {
       .input("userId", req.params.id)
       .query(`
         SELECT *
-        FROM UserContactPerson
+        FROM ContactPerson
         WHERE UserID = @userId
         ORDER BY CreationDate DESC
       `);
@@ -23,12 +23,12 @@ router.get("/Users/:id", async (req, res) => {
 });
 
 // ADD
-router.post("/", controller.add("UserContactPerson", "PatientContactsID"));
+router.post("/", controller.add("ContactPerson", "ContactsID"));
 
 // EDIT
-router.put("/:id", controller.edit("UserContactPerson", "PatientContactsID"));
+router.put("/:id", controller.edit("ContactPerson", "ContactsID"));
 
 // DELETE
-router.delete("/:id", controller.delete("UserContactPerson", "PatientContactsID"));
+router.delete("/:id", controller.delete("ContactPerson", "ContactsID"));
 
 module.exports = router;

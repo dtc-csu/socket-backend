@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const poolPromise = require('../db');
 const generic = require('../Controllers/genericController')(poolPromise);
+const bcrypt = require('bcrypt');
 
 // Controllers
 const forgotController = require('../Controllers/forgotController');
@@ -10,8 +11,82 @@ const forgotController = require('../Controllers/forgotController');
 // GENERIC CRUD ROUTES
 // ----------------------------------------------------
 router.get('/', generic.getAll("Users", "userid"));
-router.post('/', generic.add("Users", "userid"));
-router.put('/:id', generic.edit("Users", "userid"));
+
+// Custom add with validation and password hashing
+router.post('/', async (req, res) => {
+  try {
+    const { FirstName, LastName, Username, Password, Role, Email, MiddleName, PhoneNumber, Disabled, CreationDate, ModificationDate, EndDate } = req.body;
+
+    // Validation
+    if (!FirstName || !LastName || !Username || !Password || !Role || !Email) {
+      return res.status(400).json({ error: 'FirstName, LastName, Username, Password, Role, and Email are required' });
+    }
+    if (Username.length > 20) {
+      return res.status(400).json({ error: 'Username must be 20 characters or less' });
+    }
+    if (Email.length > 30) {
+      return res.status(400).json({ error: 'Email must be 30 characters or less' });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(Password, 10);
+
+    const newUser = {
+      FirstName,
+      LastName,
+      Username,
+      Password: hashedPassword,
+      Role,
+      Email,
+      MiddleName: MiddleName || null,
+      PhoneNumber: PhoneNumber || null,
+      Disabled: Disabled !== undefined ? Disabled : null,
+      CreationDate: CreationDate || null,
+      ModificationDate: ModificationDate || null,
+      EndDate: EndDate || null
+    };
+
+    // Use generic add with modified body
+    req.body = newUser;
+    generic.add("Users", "userid")(req, res);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Custom edit with validation and password hashing
+router.put('/:id', async (req, res) => {
+  try {
+    const { FirstName, LastName, Username, Password, Role, Email, MiddleName, PhoneNumber, Disabled, CreationDate, ModificationDate, EndDate } = req.body;
+
+    // Validation for provided fields
+    if (FirstName !== undefined && !FirstName) {
+      return res.status(400).json({ error: 'FirstName cannot be empty if provided' });
+    }
+    if (LastName !== undefined && !LastName) {
+      return res.status(400).json({ error: 'LastName cannot be empty if provided' });
+    }
+    if (Username !== undefined && (Username.length > 20 || !Username)) {
+      return res.status(400).json({ error: 'Username must be 20 characters or less and not empty if provided' });
+    }
+    if (Role !== undefined && !Role) {
+      return res.status(400).json({ error: 'Role cannot be empty if provided' });
+    }
+    if (Email !== undefined && (Email.length > 30 || !Email)) {
+      return res.status(400).json({ error: 'Email must be 30 characters or less and not empty if provided' });
+    }
+
+    // Hash password if provided
+    if (Password) {
+      req.body.Password = await bcrypt.hash(Password, 10);
+    }
+
+    generic.edit("Users", "userid")(req, res);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.delete('/:id', generic.delete("Users", "userid"));
 
 // ----------------------------------------------------
@@ -50,36 +125,24 @@ router.post('/login', async (req, res) => {
 
     const result = await pool.request()
       .input('username', username)
-      .input('password', password)
       .query(`
         SELECT * FROM Users
-        WHERE username = @username AND password = @password
+        WHERE username = @username
       `);
 
     if (result.recordset.length > 0) {
       const user = result.recordset[0];
 
-      // If PatientID is null, try to get it from Patient table
-      if (!user.PatientID) {
-        try {
-          const patientResult = await pool.request()
-            .input('userId', user.userid)
-            .query('SELECT PatientID FROM Patient WHERE UserID = @userId');
-          if (patientResult.recordset.length > 0) {
-            user.PatientID = patientResult.recordset[0].PatientID;
-          } else {
-            user.PatientID = user.userid.toString(); // fallback
-          }
-        } catch (e) {
-          user.PatientID = user.userid.toString(); // fallback
-        }
-      }
+      // Compare hashed password
+      const isPasswordValid = await bcrypt.compare(password, user.password);
 
-      return res.json({
-        success: true,
-        message: 'Login successful',
-        user: user
-      });
+      if (isPasswordValid) {
+        return res.json({
+          success: true,
+          message: 'Login successful',
+          user: user
+        });
+      }
     }
 
     // LOGIN FAILED
@@ -103,19 +166,28 @@ router.post('/change-password', async (req, res) => {
     const pool = await poolPromise;
     const result = await pool.request()
       .input('userId', userId)
-      .input('currentPassword', currentPassword)
       .query(`
-        SELECT * FROM Users WHERE userid = @userId AND password = @currentPassword
+        SELECT * FROM Users WHERE userid = @userId
       `);
 
     if (result.recordset.length === 0) {
+      return res.json({ success: false, message: "User not found" });
+    }
+
+    const user = result.recordset[0];
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+
+    if (!isCurrentPasswordValid) {
       return res.json({ success: false, message: "Current password is incorrect" });
     }
+
+    // Hash new password
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
 
     // Update password
     await pool.request()
       .input('userId', userId)
-      .input('newPassword', newPassword)
+      .input('newPassword', hashedNewPassword)
       .query(`
         UPDATE Users SET password = @newPassword WHERE userid = @userId
       `);
@@ -132,13 +204,19 @@ router.post('/change-email', async (req, res) => {
   try {
     const pool = await poolPromise;
 
-    // Check current password
-    const user = await pool.request()
+    // Get user
+    const userResult = await pool.request()
       .input('userId', userId)
-      .input('currentPassword', currentPassword)
-      .query('SELECT * FROM Users WHERE userid = @userId AND password = @currentPassword');
+      .query('SELECT * FROM Users WHERE userid = @userId');
 
-    if (user.recordset.length === 0) {
+    if (userResult.recordset.length === 0) {
+      return res.json({ success: false, message: "User not found" });
+    }
+
+    const user = userResult.recordset[0];
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+
+    if (!isCurrentPasswordValid) {
       return res.json({ success: false, message: "Current password is incorrect" });
     }
 

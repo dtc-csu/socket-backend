@@ -7,10 +7,10 @@ const generic = require('../Controllers/genericController')(poolPromise);
 // ----------------------------------------------------
 // GENERIC CRUD ROUTES FOR PATIENT
 // ----------------------------------------------------
-router.get('/', generic.getAll("Patient", "PatientIDNoAuto"));      // Get all patients
-router.post('/', generic.add("Patient", "PatientIDNoAuto"));        // Add patient
-router.put('/:id', generic.edit("Patient", "PatientIDNoAuto"));     // Update patient
-router.delete('/:id', generic.delete("Patient", "PatientIDNoAuto"));// Delete patient
+router.get('/', generic.getAll("Patient", "PatientID"));      // Get all patients
+router.post('/', generic.add("Patient", "PatientID"));        // Add patient
+router.put('/:id', generic.edit("Patient", "PatientID"));     // Update patient
+router.delete('/:id', generic.delete("Patient", "PatientID"));// Delete patient
 
 // ----------------------------------------------------
 // GET PATIENT INFO BY USERID

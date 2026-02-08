@@ -97,7 +97,7 @@ app.use("/api/call", callRoutes);
 /* ===================== YOUR EXISTING ROUTES ===================== */
 app.use("/ChatMessages", require("./Routes/chat"));
 app.use("/Users", require("./Routes/Users"));
-app.use("/DrugsAndMedicine", require("./Routes/drugandmedicine"));
+app.use("/DrugsAndMedicine", require("./Routes/prescription"));
 app.use("/Appointments", require("./Routes/appointments"));
 app.use("/Patient", require("./Routes/patients"));
 app.use("/Doctors", require("./Routes/doctors"));

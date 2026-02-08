@@ -33,12 +33,12 @@ router.get('/by-role/:role', async (req, res) => {
         SELECT 
           d.DoctorID,
           d.specialty,
-          u.userid,
-          u.firstname,
-          u.middlename,
-          u.lastname
+          u.UserID,
+          u.FirstName,
+          u.MiddleName,
+          u.LastName
         FROM Doctors d
-        INNER JOIN Users u ON d.UserID = u.userid
+        INNER JOIN Users u ON d.UserID = u.UserID
         WHERE u.role = @role
       `);
 

@@ -7,26 +7,23 @@ const controller = crud(poolPromise);
 // -----------------------------
 // GET all prescriptions (for doctors)
 // -----------------------------
-// GET all prescriptions (with PatientID + names)
 router.get("/", async (req, res) => {
   try {
     const pool = await poolPromise;
 
     const result = await pool.request().query(`
-      SELECT 
-        dm.DrugsAndMedicineId,
-        pat.PatientID,
-        dm.PatientIDNoAuto,
+      SELECT
+        dm.MedicineID,
+        dm.PrescriptionID,
         dm.Quantity,
         dm.Description,
         dm.CreationDate,
-        dm.EndDate,
         u.FirstName,
         u.MiddleName,
         u.LastName
-      FROM DrugsAndMedicine dm
-      INNER JOIN Patient pat ON pat.PatientIDNoAuto = dm.PatientIDNoAuto
-      INNER JOIN Users u ON u.userid = pat.UserID
+      FROM DrugAndMedicine dm
+      INNER JOIN Patient pat ON pat.PatientID = dm.PatientID
+      INNER JOIN Users u ON u.UserID = pat.UserID
       ORDER BY dm.CreationDate DESC
     `);
 
@@ -40,21 +37,21 @@ router.get("/", async (req, res) => {
 });
 
 // -----------------------------
-// GET prescriptions by PatientIDNoAuto (for patients)
+// GET prescriptions by PatientID (for patients)
 // -----------------------------
-router.get("/patient/:patientIDNoAuto", async (req, res) => {
+router.get("/patient/:patientID", async (req, res) => {
   try {
     const pool = await poolPromise;
     const result = await pool.request()
-      .input("patientID", req.params.patientIDNoAuto)
+      .input("patientID", req.params.patientID)
       .query(`
-        SELECT dm.DrugsAndMedicineId, dm.PatientIDNoAuto, dm.Quantity, dm.Description, dm.CreationDate, dm.EndDate,
-               pat.PatientIDNoAuto, pat.UserID,
+        SELECT dm.MedicineID, dm.PrescriptionID, dm.Quantity, dm.Description, dm.CreationDate,
+               pat.PatientID, pat.UserID,
                u.FirstName, u.LastName
-        FROM DrugsAndMedicine dm
-        INNER JOIN Patient pat ON pat.PatientIDNoAuto = dm.PatientIDNoAuto
+        FROM DrugAndMedicine dm
+        INNER JOIN Patient pat ON pat.PatientID = dm.PatientID
         INNER JOIN [Users] u ON u.UserID = pat.UserID
-        WHERE dm.PatientIDNoAuto = @patientID
+        WHERE dm.PatientID = @patientID
         ORDER BY dm.CreationDate DESC
       `);
     res.json(result.recordset);
@@ -68,42 +65,25 @@ router.get("/patient/:patientIDNoAuto", async (req, res) => {
 // -----------------------------
 router.post("/", async (req, res) => {
   const {
-    PatientID,
+    PrescriptionID,
     Quantity,
     Description,
-    CreationDate,
-    EndDate
+    CreationDate
   } = req.body;
 
   try {
     const pool = await poolPromise;
 
-    // Resolve PatientID → PatientIDNoAuto
-    const patient = await pool.request()
-      .input("PatientID", PatientID)
-      .query(`
-        SELECT PatientIDNoAuto
-        FROM Patient
-        WHERE PatientID = @PatientID
-      `);
-
-    if (patient.recordset.length === 0) {
-      return res.status(400).json({ error: "Patient not found" });
-    }
-
-    const patientIDNoAuto = patient.recordset[0].PatientIDNoAuto;
-
-    // Insert
+    // Insert directly
     await pool.request()
-      .input("PatientIDNoAuto", patientIDNoAuto)
+      .input("PrescriptionID", PrescriptionID)
       .input("Quantity", Quantity)
       .input("Description", Description)
       .input("CreationDate", CreationDate)
-      .input("EndDate", EndDate)
       .query(`
-        INSERT INTO DrugsAndMedicine
-        (PatientIDNoAuto, Quantity, Description, CreationDate, EndDate)
-        VALUES (@PatientIDNoAuto, @Quantity, @Description, @CreationDate, @EndDate)
+        INSERT INTO DrugAndMedicine
+        (PrescriptionID, Quantity, Description, CreationDate)
+        VALUES (@PrescriptionID, @Quantity, @Description, @CreationDate)
       `);
 
     res.json({ message: "Prescription added successfully" });
@@ -160,6 +140,6 @@ router.put("/:id", async (req, res) => {
 // -----------------------------
 // DELETE a prescription
 // -----------------------------
-router.delete("/:id", controller.delete("DrugsAndMedicine", "DrugsAndMedicineId"));
+router.delete("/:id", controller.delete("DrugAndMedicine", "MedicineID"));
 
 module.exports = router;

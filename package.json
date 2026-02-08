@@ -23,6 +23,7 @@
   "homepage": "https://github.com/Dtc-csu/socket-backend#readme",
   "dependencies": {
     "@sendgrid/mail": "^8.1.6",
+    "bcrypt": "^6.0.0",
     "body-parser": "^2.2.1",
     "cors": "^2.8.5",
     "crypto": "^1.0.1",
