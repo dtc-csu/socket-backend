@@ -145,10 +145,26 @@ router.post('/login', async (req, res) => {
       return res.json({ success: false, message: 'Invalid username or password' });
     }
 
+    // Normalize user object keys to lowercase for frontend compatibility
+    const normalizedUser = {
+      userid: user.UserID,
+      firstname: user.FirstName,
+      lastname: user.LastName,
+      middlename: user.MiddleName,
+      username: user.Username,
+      role: user.Role,
+      email: user.Email,
+      phonenumber: user.PhoneNumber,
+      disabled: user.Disabled,
+      creationdate: user.CreationDate,
+      modificationdate: user.ModificationDate,
+      enddate: user.EndDate
+    };
+
     return res.json({
       success: true,
       message: 'Login successful',
-      user
+      user: normalizedUser
     });
 
   } catch (err) {
