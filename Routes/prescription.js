@@ -13,15 +13,15 @@ router.get("/", async (req, res) => {
 
     const result = await pool.request().query(`
       SELECT
-        dm.MedicineID,
-        dm.PrescriptionID,
+        dm.DrugsAndMedicineId,
+        dm.PatientID,
         dm.Quantity,
         dm.Description,
         dm.CreationDate,
         u.FirstName,
         u.MiddleName,
         u.LastName
-      FROM DrugAndMedicine dm
+      FROM DrugsAndMedicines dm
       INNER JOIN Patient pat ON pat.PatientID = dm.PatientID
       INNER JOIN Users u ON u.UserID = pat.UserID
       ORDER BY dm.CreationDate DESC
@@ -45,13 +45,15 @@ router.get("/patient/:patientID", async (req, res) => {
     const result = await pool.request()
       .input("patientID", req.params.patientID)
       .query(`
-        SELECT dm.MedicineID, dm.PrescriptionID, dm.Quantity, dm.Description, dm.CreationDate,
+        SELECT dm.MedicineID, p.PrescriptionID, p.PatientID, dm.Quantity, dm.Description, dm.CreationDate,
+               p.ServiceType,
                pat.PatientID, pat.UserID,
                u.FirstName, u.LastName
         FROM DrugAndMedicine dm
-        INNER JOIN Patient pat ON pat.PatientID = dm.PatientID
+        INNER JOIN Prescription p ON p.PrescriptionID = dm.PrescriptionID
+        INNER JOIN Patient pat ON pat.PatientID = p.PatientID
         INNER JOIN [Users] u ON u.UserID = pat.UserID
-        WHERE dm.PatientID = @patientID
+        WHERE p.PatientID = @patientID
         ORDER BY dm.CreationDate DESC
       `);
     res.json(result.recordset);
@@ -96,38 +98,21 @@ router.post("/", async (req, res) => {
 // EDIT a prescription
 // -----------------------------
 router.put("/:id", async (req, res) => {
-  const { PatientID, Quantity, Description, EndDate } = req.body;
+  const { Quantity, Description } = req.body;
 
   try {
     const pool = await poolPromise;
 
-    // Resolve PatientID → PatientIDNoAuto
-    const patient = await pool.request()
-      .input("PatientID", PatientID)
-      .query(`
-        SELECT PatientIDNoAuto FROM Patient WHERE PatientID = @PatientID
-      `);
-
-    if (patient.recordset.length === 0) {
-      return res.status(400).json({ error: "Patient not found" });
-    }
-
-    const patientIDNoAuto = patient.recordset[0].PatientIDNoAuto;
-
-    // Update DrugsAndMedicine
+    // Update DrugAndMedicine
     await pool.request()
-      .input("DrugsAndMedicineId", req.params.id)
-      .input("PatientIDNoAuto", patientIDNoAuto)
+      .input("MedicineID", req.params.id)
       .input("Quantity", Quantity)
       .input("Description", Description)
-      .input("EndDate", EndDate)
       .query(`
-        UPDATE DrugsAndMedicine
-        SET PatientIDNoAuto = @PatientIDNoAuto,
-            Quantity = @Quantity,
-            Description = @Description,
-            EndDate = @EndDate
-        WHERE DrugsAndMedicineId = @DrugsAndMedicineId
+        UPDATE DrugAndMedicine
+        SET Quantity = @Quantity,
+            Description = @Description
+        WHERE MedicineID = @MedicineID
       `);
 
     res.json({ message: "Prescription updated successfully" });
