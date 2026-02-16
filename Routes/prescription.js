@@ -13,16 +13,19 @@ router.get("/", async (req, res) => {
 
     const result = await pool.request().query(`
       SELECT
-        dm.DrugsAndMedicineId,
-        dm.PatientID,
+        dm.MedicineID,
+        p.PrescriptionID,
+        p.PatientID,
         dm.Quantity,
         dm.Description,
         dm.CreationDate,
+        p.ServiceType,
         u.FirstName,
         u.MiddleName,
         u.LastName
-      FROM DrugsAndMedicines dm
-      INNER JOIN Patient pat ON pat.PatientID = dm.PatientID
+      FROM DrugAndMedicine dm
+      INNER JOIN Prescription p ON p.PrescriptionID = dm.PrescriptionID
+      INNER JOIN Patient pat ON pat.PatientID = p.PatientID
       INNER JOIN Users u ON u.UserID = pat.UserID
       ORDER BY dm.CreationDate DESC
     `);
@@ -63,7 +66,51 @@ router.get("/patient/:patientID", async (req, res) => {
 });
 
 // -----------------------------
-// ADD a prescription
+// CREATE a new prescription (header)
+// -----------------------------
+router.post("/create", async (req, res) => {
+  const {
+    PatientID,
+    DoctorID,
+    ServiceType,
+    EndDate
+  } = req.body;
+
+  if (!PatientID || !DoctorID || !ServiceType) {
+    return res.status(400).json({ 
+      error: "PatientID, DoctorID, and ServiceType are required" 
+    });
+  }
+
+  try {
+    const pool = await poolPromise;
+
+    const result = await pool.request()
+      .input("PatientID", PatientID)
+      .input("DoctorID", DoctorID)
+      .input("ServiceType", ServiceType)
+      .input("EndDate", EndDate || null)
+      .input("CreationDate", new Date())
+      .query(`
+        INSERT INTO Prescription (PatientID, DoctorID, ServiceType, EndDate, CreationDate)
+        VALUES (@PatientID, @DoctorID, @ServiceType, @EndDate, @CreationDate);
+        SELECT SCOPE_IDENTITY() AS PrescriptionID;
+      `);
+
+    const prescriptionID = result.recordset[0].PrescriptionID;
+    
+    res.json({ 
+      message: "Prescription created successfully",
+      PrescriptionID: prescriptionID
+    });
+  } catch (err) {
+    console.error("Error creating prescription:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// -----------------------------
+// ADD a drug/medicine to an existing prescription
 // -----------------------------
 router.post("/", async (req, res) => {
   const {
@@ -73,23 +120,30 @@ router.post("/", async (req, res) => {
     CreationDate
   } = req.body;
 
+  if (!PrescriptionID) {
+    return res.status(400).json({ 
+      error: "PrescriptionID is required. Create a prescription first using /prescription/create" 
+    });
+  }
+
   try {
     const pool = await poolPromise;
 
-    // Insert directly
+    // Insert drug/medicine
     await pool.request()
       .input("PrescriptionID", PrescriptionID)
       .input("Quantity", Quantity)
       .input("Description", Description)
-      .input("CreationDate", CreationDate)
+      .input("CreationDate", CreationDate || new Date())
       .query(`
         INSERT INTO DrugAndMedicine
         (PrescriptionID, Quantity, Description, CreationDate)
         VALUES (@PrescriptionID, @Quantity, @Description, @CreationDate)
       `);
 
-    res.json({ message: "Prescription added successfully" });
+    res.json({ message: "Drug/Medicine added successfully" });
   } catch (err) {
+    console.error("Error adding drug/medicine:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
