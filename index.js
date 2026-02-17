@@ -99,6 +99,7 @@ app.use("/ChatMessages", require("./Routes/chat"));
 app.use("/Users", require("./Routes/Users"));
 app.use("/DrugsAndMedicine", require("./Routes/prescription"));
 app.use("/Appointments", require("./Routes/appointments"));
+app.use("/FollowUps", require("./Routes/followups"));
 app.use("/Patient", require("./Routes/patients"));
 app.use("/Doctors", require("./Routes/doctors"));
 app.use("/ContactPerson", require("./Routes/contactperson"));
