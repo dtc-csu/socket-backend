@@ -107,6 +107,7 @@ app.use("/FamilyInfo", require("./Routes/familyinfo"));
 app.use("/Dental", require("./Routes/dental"));
 app.use("/DentalRecords", require("./Routes/dentalrecords"));
 app.use("/MedicalRecords", require("./Routes/medicalrecords"));
+app.use("/AccountLogs", require("./Routes/accountLogs"));
 const streamWebhook = require('./Routes/streamWebhook');
 app.use('/api/stream', streamWebhook);
 const generic = require("./Routes/fcm_generic");
