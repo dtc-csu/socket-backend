@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const crud = require("../Controllers/genericController");
 const poolPromise = require("../db");
+const sql = require('mssql');
 const controller = crud(poolPromise);
 
 // -----------------------------
@@ -105,6 +106,67 @@ router.post("/create", async (req, res) => {
     });
   } catch (err) {
     console.error("Error creating prescription:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// -----------------------------
+// CREATE a new prescription with multiple drugs (bulk, transactional)
+// -----------------------------
+router.post('/bulk', async (req, res) => {
+  const { PatientID, DoctorID, ServiceType, EndDate, drugs } = req.body;
+  // drugs = [{ Quantity, Description, CreationDate }, ...]
+
+  if (!PatientID || !DoctorID || !ServiceType || !Array.isArray(drugs)) {
+    return res.status(400).json({ error: 'PatientID, DoctorID, ServiceType and drugs[] are required' });
+  }
+
+  const pool = await poolPromise;
+  const transaction = new sql.Transaction(pool);
+
+  try {
+    await transaction.begin();
+
+    // Insert header
+    const headerReq = transaction.request();
+    const headerResult = await headerReq
+      .input('PatientID', PatientID)
+      .input('DoctorID', DoctorID)
+      .input('ServiceType', ServiceType)
+      .input('EndDate', EndDate || null)
+      .input('CreationDate', new Date())
+      .query(`
+        INSERT INTO Prescription (PatientID, DoctorID, ServiceType, EndDate, CreationDate)
+        VALUES (@PatientID, @DoctorID, @ServiceType, @EndDate, @CreationDate);
+        SELECT SCOPE_IDENTITY() AS PrescriptionID;
+      `);
+
+    const prescriptionID = headerResult.recordset[0].PrescriptionID;
+
+    // Insert drugs
+    for (const d of drugs) {
+      const r = transaction.request();
+      await r
+        .input('PrescriptionID', prescriptionID)
+        .input('Quantity', d.Quantity)
+        .input('Description', d.Description)
+        .input('CreationDate', d.CreationDate ? new Date(d.CreationDate) : new Date())
+        .query(`
+          INSERT INTO DrugAndMedicine (PrescriptionID, Quantity, Description, CreationDate)
+          VALUES (@PrescriptionID, @Quantity, @Description, @CreationDate)
+        `);
+    }
+
+    await transaction.commit();
+
+    res.json({ message: 'Prescription created with drugs', PrescriptionID: prescriptionID, inserted: drugs.length });
+  } catch (err) {
+    try {
+      await transaction.rollback();
+    } catch (rbErr) {
+      console.error('Rollback error (prescription bulk):', rbErr);
+    }
+    console.error('Error creating prescription bulk:', err.message);
     res.status(500).json({ error: err.message });
   }
 });

@@ -100,4 +100,49 @@ router.delete('/:dentalRecordId', async (req, res) => {
   }
 });
 
+// ---------------------- GET single dental record by ID ----------------------
+router.get('/:dentalRecordId', async (req, res) => {
+  const dentalRecordId = req.params.dentalRecordId;
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('dentalRecordId', dentalRecordId)
+      .query(`
+        SELECT DentalRecordID, PatientID, DentalService, Medication, CreationDate, EndDate
+        FROM DentalRecord
+        WHERE DentalRecordID = @dentalRecordId
+      `);
+    if (result.recordset.length === 0) return res.status(404).json({ error: 'Not found' });
+    res.json(result.recordset[0]);
+  } catch (err) {
+    console.error('Error fetching dental record by id:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------- UPDATE dental record by ID ----------------------
+router.put('/:dentalRecordId', async (req, res) => {
+  const dentalRecordId = req.params.dentalRecordId;
+  const { DentalService, Medication, EndDate } = req.body;
+  try {
+    const pool = await poolPromise;
+    await pool.request()
+      .input('dentalRecordId', dentalRecordId)
+      .input('DentalService', DentalService || null)
+      .input('Medication', Medication || null)
+      .input('EndDate', EndDate ? new Date(EndDate) : null)
+      .query(`
+        UPDATE DentalRecord
+        SET DentalService = @DentalService,
+            Medication = @Medication,
+            EndDate = @EndDate
+        WHERE DentalRecordID = @dentalRecordId
+      `);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error updating dental record:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

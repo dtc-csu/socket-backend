@@ -36,6 +36,40 @@ router.get("/patient/:patientId", async (req, res) => {
   }
 });
 
+// ✅ Summary for tiles: return only NVARCHAR/text fields suitable for UI preview
+router.get('/summary/patient/:patientId', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+
+    // Get PatientIDNoAuto first
+    const patientResult = await pool
+      .request()
+      .input('patientId', req.params.patientId)
+      .query('SELECT PatientIDNoAuto FROM Patient WHERE PatientID = @patientId');
+
+    if (patientResult.recordset.length === 0) {
+      return res.status(404).json({ message: 'Patient not found' });
+    }
+
+    const patientIdNoAuto = patientResult.recordset[0].PatientIDNoAuto;
+
+    // Select only textual/NVARCHAR fields and CreationDate for preview
+    const result = await pool
+      .request()
+      .input('patientIdNoAuto', patientIdNoAuto)
+      .query(`
+        SELECT TOP (100) MedicalRecordsId AS MedicalRecordID, PatientIDNoAuto, ChiefComplaint, DiagnosisAssessment, PlanManagement, CreationDate
+        FROM MedicalRecords
+        WHERE PatientIDNoAuto = @patientIdNoAuto
+        ORDER BY CreationDate DESC
+      `);
+
+    res.json(result.recordset);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // ✅ Add record
 router.post("/", async (req, res) => {
   try {

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const poolPromise = require('../db');
+const sql = require('mssql');
 
 // ---------------------- GET all dental records ----------------------
 router.get('/', async (req, res) => {
@@ -110,6 +111,75 @@ router.post('/tooth', async (req, res) => {
     res.json({ success: true, DentalToothID: newDentalToothId });
   } catch (err) {
     console.error("Error creating dental tooth:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------- GET dental teeth by DentalRecordID ----------------------
+router.get('/tooth/record/:dentalRecordId', async (req, res) => {
+  const dentalRecordId = req.params.dentalRecordId;
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('dentalRecordId', dentalRecordId)
+      .query(`
+        SELECT DentalToothID, DentalRecordID, ToothNumber, ProcedureDone, CreationDate
+        FROM DentalTooth
+        WHERE DentalRecordID = @dentalRecordId
+        ORDER BY CreationDate ASC
+      `);
+    res.json(result.recordset);
+  } catch (err) {
+    console.error('Error fetching dental teeth for record:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------- REPLACE dental teeth for a record (bulk) ----------------------
+router.post('/tooth/bulk', async (req, res) => {
+  const { DentalRecordID, teeth } = req.body; // teeth = [{ToothNumber, ProcedureDone, CreationDate}, ...]
+  if (!DentalRecordID || !Array.isArray(teeth)) {
+    return res.status(400).json({ error: 'DentalRecordID and teeth array are required' });
+  }
+
+  const pool = await poolPromise;
+  const transaction = new sql.Transaction(pool);
+
+  try {
+    await transaction.begin();
+
+    // Use transaction-scoped requests
+    const trxRequest = transaction.request();
+
+    // Delete existing teeth for the record
+    await trxRequest
+      .input('dentalRecordId', DentalRecordID)
+      .query('DELETE FROM DentalTooth WHERE DentalRecordID = @dentalRecordId');
+
+    // Insert new teeth
+    for (const t of teeth) {
+      const r = transaction.request();
+      await r
+        .input('DentalRecordID', DentalRecordID)
+        .input('ToothNumber', t.ToothNumber)
+        .input('ProcedureDone', t.ProcedureDone)
+        .input('CreationDate', t.CreationDate ? new Date(t.CreationDate) : new Date())
+        .query(`
+          INSERT INTO DentalTooth (DentalRecordID, ToothNumber, ProcedureDone, CreationDate)
+          VALUES (@DentalRecordID, @ToothNumber, @ProcedureDone, @CreationDate)
+        `);
+    }
+
+    await transaction.commit();
+
+    res.json({ success: true, inserted: teeth.length });
+  } catch (err) {
+    try {
+      await transaction.rollback();
+    } catch (rbErr) {
+      console.error('Rollback error:', rbErr);
+    }
+    console.error('Error replacing dental teeth (transactional):', err);
     res.status(500).json({ error: err.message });
   }
 });
