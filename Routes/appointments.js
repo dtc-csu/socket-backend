@@ -35,7 +35,6 @@ router.get('/', async (req, res) => {
       SELECT 
         AppointmentID,
         PatientID,
-        DoctorID,
         AppointmentDate,
         Status,
         ChiefComplaint,

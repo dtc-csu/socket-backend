@@ -77,14 +77,46 @@ const forgotController = {
       // Save OTP in Redis with 5 min expiry
       await redis.set(`otp:sms:${phone}`, otp, { EX: 300 });
 
-      // Send OTP via SMS using Twilio
-      await twilioClient.messages.create({
-        body: `Your OTP code is ${otp}. This OTP will expire in 5 minutes.`,
-        from: process.env.TWILIO_PHONE_NUMBER,
-        to: phone
-      });
+      const message = `Your OTP code is ${otp}. This OTP will expire in 5 minutes.`;
 
-      return res.json({ success: true, message: "OTP sent via SMS" });
+      // Try Twilio first (if configured)
+      if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER) {
+        try {
+          await twilioClient.messages.create({
+            body: message,
+            from: process.env.TWILIO_PHONE_NUMBER,
+            to: phone
+          });
+          return res.json({ success: true, message: "OTP sent via Twilio SMS" });
+        } catch (twErr) {
+          console.error('Twilio send error:', twErr);
+          // fallthrough to try other providers
+        }
+      }
+
+      // Next try Textbelt (simple free-ish provider if API key provided)
+      if (process.env.TEXTBELT_API_KEY) {
+        try {
+          const resp = await fetch('https://textbelt.com/text', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: phone, message: message, key: process.env.TEXTBELT_API_KEY }),
+          });
+          const json = await resp.json();
+          if (json && json.success) {
+            return res.json({ success: true, message: 'OTP sent via Textbelt' });
+          } else {
+            console.error('Textbelt send failed:', json);
+          }
+        } catch (tbErr) {
+          console.error('Textbelt error:', tbErr);
+        }
+      }
+
+      // If no provider is configured or sending failed, log OTP for debugging and optionally return it when DEBUG_OTP=true
+      console.warn(`OTP for ${phone}: ${otp}`);
+      const debugOtp = process.env.DEBUG_OTP === 'true' ? otp : undefined;
+      return res.json({ success: true, message: 'OTP generated (not sent). Configure TWILIO or TEXTBELT to send SMS.', debugOtp });
     } catch (error) {
       console.error(error);
       res.status(500).json({ success: false, message: "Server error" });
