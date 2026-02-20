@@ -101,6 +101,7 @@ app.use("/DrugsAndMedicine", require("./Routes/prescription"));
 app.use("/Appointments", require("./Routes/appointments"));
 app.use("/FollowUps", require("./Routes/followups"));
 app.use("/Patient", require("./Routes/patients"));
+app.use("/patients", require("./Routes/patients"));
 app.use("/Doctors", require("./Routes/doctors"));
 app.use("/ContactPerson", require("./Routes/contactperson"));
 app.use("/FamilyInfo", require("./Routes/familyinfo"));
