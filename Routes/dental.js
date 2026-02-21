@@ -74,7 +74,8 @@ router.post('/', async (req, res) => {
       `);
 
     const newDentalRecordId = result.recordset[0].DentalRecordID;
-    res.json({ success: true, DentalRecordID: newDentalRecordId });
+    // Return both legacy and normalized keys so clients can handle either shape
+    res.json({ success: true, DentalRecordID: newDentalRecordId, id: newDentalRecordId });
   } catch (err) {
     console.error("Error creating dental record:", err);
     res.status(500).json({ error: err.message });
@@ -137,9 +138,14 @@ router.get('/tooth/record/:dentalRecordId', async (req, res) => {
 
 // ---------------------- REPLACE dental teeth for a record (bulk) ----------------------
 router.post('/tooth/bulk', async (req, res) => {
-  const { DentalRecordID, teeth } = req.body; // teeth = [{ToothNumber, ProcedureDone, CreationDate}, ...]
+  // Accept both the server's expected shape and the Flutter client's shape
+  // Server expects: { DentalRecordID, teeth }
+  // Client may send: { RecordId, Teeth }
+  const DentalRecordID = req.body.DentalRecordID || req.body.RecordId || req.body.recordId;
+  const teeth = req.body.teeth || req.body.Teeth;
+
   if (!DentalRecordID || !Array.isArray(teeth)) {
-    return res.status(400).json({ error: 'DentalRecordID and teeth array are required' });
+    return res.status(400).json({ error: 'DentalRecordID (or RecordId) and teeth/Teeth array are required' });
   }
 
   const pool = await poolPromise;

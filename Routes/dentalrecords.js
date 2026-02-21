@@ -73,7 +73,8 @@ router.post('/', async (req, res) => {
       `);
 
     const newDentalRecordId = result.recordset[0].DentalRecordID;
-    res.json({ success: true, DentalRecordID: newDentalRecordId });
+    // Return both legacy and normalized keys so clients can handle either shape
+    res.json({ success: true, DentalRecordID: newDentalRecordId, id: newDentalRecordId });
   } catch (err) {
     console.error("Error creating dental record:", err);
     res.status(500).json({ error: err.message });
