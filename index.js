@@ -10,56 +10,7 @@ const { generateToken, STREAM_API_KEY } = require("./Routes/streamService");
 /* ===================== APP SETUP ===================== */
 const app = express();
 app.use(cors());
-// NOTE: `express.json()` is intentionally not applied here so that
-// the Stream webhook route can receive the raw request body for
-// signature verification. A JSON parser is applied later.
-
-// ------------------ REQUEST LOGGING ------------------
-// Logs incoming requests (method, url, headers) and body characteristics
-// to stdout/stderr so the Render logs can capture them.
-app.use((req, res, next) => {
-  try {
-    const now = new Date().toISOString();
-    console.log(`\n[REQUEST] ${now} ${req.method} ${req.originalUrl}`);
-    try {
-      // Avoid logging extremely large headers or binary blobs entirely
-      console.log('[REQUEST] headers:', JSON.stringify(req.headers));
-    } catch (e) {
-      console.log('[REQUEST] headers: <unserializable>');
-    }
-
-    // Body may be undefined at this point (parsers run later), but log type if present
-    if (req.body !== undefined) {
-      console.log('[REQUEST] bodyType:', typeof req.body, 'isBuffer:', Buffer.isBuffer(req.body));
-      if (Buffer.isBuffer(req.body)) {
-        try {
-          console.log('[REQUEST] rawBodyPreview:', req.body.toString('utf8', 0, 1000));
-        } catch (e) {
-          console.log('[REQUEST] rawBodyPreview: <unprintable>');
-        }
-      } else if (typeof req.body === 'object') {
-        try {
-          console.log('[REQUEST] bodyJSON:', JSON.stringify(req.body));
-        } catch (e) {
-          console.log('[REQUEST] bodyJSON: <unserializable>');
-        }
-      } else {
-        console.log('[REQUEST] body:', req.body);
-      }
-    } else {
-      console.log('[REQUEST] body: <not-parsed-yet>');
-    }
-
-    res.on('finish', () => {
-      const later = new Date().toISOString();
-      console.log(`[RESPONSE] ${later} ${res.statusCode} ${req.method} ${req.originalUrl}`);
-    });
-  } catch (err) {
-    console.error('Request logging failed:', err);
-  }
-
-  next();
-});
+app.use(express.json());
 
 const server = http.createServer(app);
 

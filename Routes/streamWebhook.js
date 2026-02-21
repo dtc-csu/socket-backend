@@ -11,16 +11,6 @@ function verifyStreamSignature(req) {
   if (!signature) return false;
 
   const body = req.body; // RAW buffer
-  // Log the body type for debugging in server logs
-  try {
-    console.log('[webhook] verifyStreamSignature - body type:', typeof body, 'isBuffer:', Buffer.isBuffer(body));
-    if (Buffer.isBuffer(body)) {
-      console.log('[webhook] verifyStreamSignature - raw body preview:', body.toString('utf8', 0, 1000));
-    }
-  } catch (e) {
-    console.log('[webhook] verifyStreamSignature - logging failed', e);
-  }
-
   const hash = crypto
     .createHmac('sha256', STREAM_SECRET)
     .update(body)
@@ -31,7 +21,6 @@ function verifyStreamSignature(req) {
 
 router.post('/webhook', async (req, res) => {
   try {
-    console.log('[webhook] incoming webhook:', req.method, req.originalUrl, 'headers x-signature:', req.headers['x-signature']);
     // 1️⃣ Verify signature
     if (!verifyStreamSignature(req)) {
       return res.status(401).send('Invalid Stream signature');
