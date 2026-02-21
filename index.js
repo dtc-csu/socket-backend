@@ -10,7 +10,9 @@ const { generateToken, STREAM_API_KEY } = require("./Routes/streamService");
 /* ===================== APP SETUP ===================== */
 const app = express();
 app.use(cors());
-app.use(express.json());
+// NOTE: `express.json()` is intentionally not applied here so that
+// the Stream webhook route can receive the raw request body for
+// signature verification. A JSON parser is applied later.
 
 const server = http.createServer(app);
 
