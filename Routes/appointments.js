@@ -7,18 +7,18 @@ const poolPromise = require('../db');
 router.get('/maxslot', async (req, res) => {
   try {
     const pool = await poolPromise;
-    // Get the latest appointment with a MaxSlot value
     const result = await pool.request().query(`
-      SELECT TOP 1 MaxSlot
-      FROM Appointments
-      WHERE MaxSlot IS NOT NULL
-      ORDER BY AppointmentDate DESC
+      SELECT TOP 1 SettingValue
+      FROM SystemSettings
+      WHERE SettingName = 'DefaultMaxSlot'
     `);
-    
-    if (result.recordset.length > 0 && result.recordset[0].MaxSlot !== null) {
-      res.json({ maxSlot: result.recordset[0].MaxSlot });
+
+    if (
+      result.recordset.length > 0 &&
+      result.recordset[0].SettingValue !== null
+    ) {
+      res.json({ maxSlot: result.recordset[0].SettingValue });
     } else {
-      // Return default value if no MaxSlot found
       res.json({ maxSlot: 50 });
     }
   } catch (err) {
@@ -38,8 +38,7 @@ router.get('/', async (req, res) => {
         AppointmentDate,
         Status,
         ChiefComplaint,
-        CreatedAt,
-        MaxSlot
+        CreatedAt
       FROM Appointments
       ORDER BY AppointmentDate DESC
     `);
