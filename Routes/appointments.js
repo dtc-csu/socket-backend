@@ -2,15 +2,17 @@
 const express = require('express');
 const router = express.Router();
 const poolPromise = require('../db');
+const generic = require('../Controllers/genericController')(poolPromise);
 
 // ---------------------- GET current MaxSlot ----------------------
 router.get('/maxslot', async (req, res) => {
   try {
     const pool = await poolPromise;
     const result = await pool.request().query(`
-      SELECT TOP 1 SettingValue
+      SELECT SettingValue
       FROM SystemSettings
       WHERE SettingName = 'DefaultMaxSlot'
+      LIMIT 1
     `);
 
     if (
@@ -139,6 +141,150 @@ router.put('/:appointmentId', async (req, res) => {
     res.json({ success: true, message: `Appointment ${appointmentId} updated to ${status}` });
   } catch (err) {
     console.error("Error updating appointment:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------- GET appointments by specific date ----------------------
+router.get('/date/:date', async (req, res) => {
+  const date = req.params.date;
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('date', date)
+      .query(`
+        SELECT *
+        FROM Appointments
+        WHERE DATE(AppointmentDate) = DATE(@date)
+        ORDER BY AppointmentDate ASC
+      `);
+    res.json(result.recordset);
+  } catch (err) {
+    console.error("Error fetching appointments by date:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------- GET all active appointments ----------------------
+router.get('/active/list', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().query(`
+      SELECT *
+      FROM Appointments
+      WHERE Status NOT IN ('Cancelled', 'Completed', 'Rejected')
+      ORDER BY AppointmentDate ASC
+    `);
+    res.json(result.recordset);
+  } catch (err) {
+    console.error("Error fetching active appointments:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------- CHECK if patient has appointment on date ----------------------
+router.get('/check/:patientId/:date', async (req, res) => {
+  const { patientId, date } = req.params;
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('patientId', patientId)
+      .input('date', date)
+      .query(`
+        SELECT COUNT(*) AS appointmentCount
+        FROM Appointments
+        WHERE PatientID = @patientId
+          AND DATE(AppointmentDate) = DATE(@date)
+          AND Status NOT IN ('Cancelled', 'Rejected')
+      `);
+    
+    const hasAppointment = result.recordset[0].appointmentCount > 0;
+    
+    res.json({ 
+      hasAppointment,
+      count: result.recordset[0].appointmentCount
+    });
+  } catch (err) {
+    console.error("Error checking patient appointment:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------- GET appointment by ID ----------------------
+router.get('/:appointmentId', async (req, res) => {
+  const appointmentId = req.params.appointmentId;
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('appointmentId', appointmentId)
+      .query(`
+        SELECT *
+        FROM Appointments
+        WHERE AppointmentID = @appointmentId
+      `);
+    
+    if (result.recordset.length === 0) {
+      return res.status(404).json({ error: "Appointment not found" });
+    }
+    
+    res.json(result.recordset[0]);
+  } catch (err) {
+    console.error("Error fetching appointment:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------- DELETE appointment ----------------------
+router.delete('/:appointmentId', async (req, res) => {
+  const appointmentId = req.params.appointmentId;
+  try {
+    const pool = await poolPromise;
+    await pool.request()
+      .input('appointmentId', appointmentId)
+      .query(`DELETE FROM Appointments WHERE AppointmentID = @appointmentId`);
+    
+    res.json({ success: true, message: `Appointment ${appointmentId} deleted` });
+  } catch (err) {
+    console.error("Error deleting appointment:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------- SEARCH/FILTER appointments ----------------------
+router.get('/search/filter', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const { status, patientId, startDate, endDate } = req.query;
+    
+    const request = pool.request();
+    let query = `SELECT * FROM Appointments WHERE 1=1`;
+    
+    if (status) {
+      query += ` AND Status = @status`;
+      request.input('status', status);
+    }
+    
+    if (patientId) {
+      query += ` AND PatientID = @patientId`;
+      request.input('patientId', patientId);
+    }
+    
+    if (startDate) {
+      query += ` AND AppointmentDate >= @startDate`;
+      request.input('startDate', startDate);
+    }
+    
+    if (endDate) {
+      query += ` AND AppointmentDate <= @endDate`;
+      request.input('endDate', endDate);
+    }
+    
+    query += ` ORDER BY AppointmentDate DESC`;
+    
+    const result = await request.query(query);
+    res.json(result.recordset);
+  } catch (err) {
+    console.error("Error searching appointments:", err);
     res.status(500).json({ error: err.message });
   }
 });

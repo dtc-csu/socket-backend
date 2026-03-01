@@ -24,7 +24,9 @@ router.get("/patient/:patientId", async (req, res) => {
       .request()
       .input("patientIdNoAuto", patientIdNoAuto)
       .query(`
-        SELECT TOP (1000) [MedicalRecordsId], [PatientIDNoAuto], [ChiefComplaint], [HistoryofPresentIllness], [Constitutional], [HEENT], [Cardiovascular], [Respiratory], [Gastrointestinal], [Genitourinary], [Musculoskeletal], [Skin], [Psychiatric], [EndocrineHematologic], [AllergicImmunologic], [DiagnosisAssessment], [PlanManagement], [PastMedicalandMedicationHistory], [ObstetricandGynecologicHistory], [FamilyHistory], [CreationDate], [EndDate]
+        SELECT MedicalRecordsId, PatientIDNoAuto, ChiefComplaint, HistoryofPresentIllness, Constitutional, HEENT, Cardiovascular, Respiratory, Gastrointestinal, Genitourinary, Musculoskeletal, Skin, Psychiatric, EndocrineHematologic, AllergicImmunologic, DiagnosisAssessment, PlanManagement, PastMedicalandMedicationHistory, ObstetricandGynecologicHistory, FamilyHistory, CreationDate, EndDate
+        FROM MedicalRecords
+        LIMIT 1000
         FROM MedicalRecords
         WHERE PatientIDNoAuto = @patientIdNoAuto
         ORDER BY CreationDate DESC
@@ -58,7 +60,9 @@ router.get('/summary/patient/:patientId', async (req, res) => {
       .request()
       .input('patientIdNoAuto', patientIdNoAuto)
       .query(`
-        SELECT TOP (100) MedicalRecordsId AS MedicalRecordID, PatientIDNoAuto, ChiefComplaint, DiagnosisAssessment, PlanManagement, CreationDate
+        SELECT MedicalRecordsId AS MedicalRecordID, PatientIDNoAuto, ChiefComplaint, DiagnosisAssessment, PlanManagement, CreationDate
+        FROM MedicalRecords
+        LIMIT 100
         FROM MedicalRecords
         WHERE PatientIDNoAuto = @patientIdNoAuto
         ORDER BY CreationDate DESC

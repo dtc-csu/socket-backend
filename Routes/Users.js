@@ -21,9 +21,106 @@ function verifyPassword(inputPassword, storedHash) {
   return hashPassword(inputPassword) === storedHash;
 }
 
-// ----------------------------------------------------
-// GENERIC CRUD ROUTES
-// ----------------------------------------------------
+// ============================================================
+// SPECIFIC ROUTES (MUST COME BEFORE GENERIC /:id ROUTES)
+// ============================================================
+
+// ---------------------- GET USER BY ID (BY USERID) ----------------------
+router.get('/:id', async (req, res) => {
+  const userId = req.params.id;
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('userId', userId)
+      .query(`
+        SELECT * FROM Users
+        WHERE userid = @userId
+      `);
+    
+    if (result.recordset.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    
+    res.json(result.recordset[0]);
+  } catch (err) {
+    console.error("Error fetching user:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------- GET USERS BY ROLE ----------------------
+router.get('/role/:role', async (req, res) => {
+  const role = req.params.role;
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('role', role)
+      .query(`
+        SELECT * FROM Users
+        WHERE Role = @role
+        ORDER BY FirstName, LastName
+      `);
+    
+    res.json(result.recordset);
+  } catch (err) {
+    console.error("Error fetching users by role:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------- CHECK IF USERNAME EXISTS ----------------------
+router.get('/exists/username', async (req, res) => {
+  const { username, excludeId } = req.query;
+  
+  if (!username) {
+    return res.status(400).json({ error: "Username query parameter is required" });
+  }
+  
+  try {
+    const pool = await poolPromise;
+    let query = `SELECT COUNT(*) as count FROM Users WHERE Username = @username`;
+    let request = pool.request().input('username', username);
+    
+    // Exclude a specific user (useful when checking updates)
+    if (excludeId) {
+      query += ` AND userid != @excludeId`;
+      request = request.input('excludeId', excludeId);
+    }
+    
+    const result = await request.query(query);
+    const exists = result.recordset[0].count > 0;
+    
+    res.json({ 
+      exists,
+      username,
+      message: exists ? "Username is already taken" : "Username is available"
+    });
+  } catch (err) {
+    console.error("Error checking username:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------- GET ARCHIVED USERS (SOFT DELETED) ----------------------
+router.get('/archived/list', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().query(`
+      SELECT * FROM Users
+      WHERE Disabled = 1 AND EndDate IS NOT NULL
+      ORDER BY EndDate DESC
+    `);
+    
+    res.json(result.recordset);
+  } catch (err) {
+    console.error("Error fetching archived users:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================================
+// GENERIC CRUD ROUTES (AFTER SPECIFIC ROUTES)
+// ============================================================
 router.get('/', generic.getAll("Users", "userid"));
 
 // ----------------------------------------------------
@@ -106,7 +203,55 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+// ---------------------- DEACTIVATE USER (SOFT DELETE) ----------------------
+router.put('/:id/deactivate', async (req, res) => {
+  const userId = req.params.id;
+  
+  try {
+    const pool = await poolPromise;
+    
+    // Mark user as disabled and set end date
+    await pool.request()
+      .input('userId', userId)
+      .input('now', new Date())
+      .query(`
+        UPDATE Users 
+        SET Disabled = 1, EndDate = @now
+        WHERE userid = @userId
+      `);
+    
+    res.json({ success: true, message: `User ${userId} deactivated successfully` });
+  } catch (err) {
+    console.error("Error deactivating user:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------- PERMANENT DELETE USER (HARD DELETE) ----------------------
 router.delete('/:id', generic.delete("Users", "userid"));
+
+// ---------------------- REACTIVATE USER ----------------------
+router.put('/:id/reactivate', async (req, res) => {
+  const userId = req.params.id;
+  
+  try {
+    const pool = await poolPromise;
+    
+    // Clear disabled flag and end date
+    await pool.request()
+      .input('userId', userId)
+      .query(`
+        UPDATE Users 
+        SET Disabled = 0, EndDate = NULL
+        WHERE userid = @userId
+      `);
+    
+    res.json({ success: true, message: `User ${userId} reactivated successfully` });
+  } catch (err) {
+    console.error("Error reactivating user:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ----------------------------------------------------
 // FORGOT PASSWORD / OTP ROUTES
@@ -143,6 +288,14 @@ router.post('/login', async (req, res) => {
 
     if (!isPasswordValid) {
       return res.json({ success: false, message: 'Invalid username or password' });
+    }
+
+    // Check if user is disabled
+    if (user.Disabled === 1 || user.Disabled === true) {
+      return res.json({ 
+        success: false, 
+        message: 'This account has been deactivated. Contact support to reactivate.' 
+      });
     }
 
     // Normalize user object keys to lowercase for frontend compatibility

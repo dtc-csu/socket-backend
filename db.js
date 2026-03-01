@@ -61,6 +61,9 @@ const rewriteSqlServerToMySql = (query, params) => {
   // Convert SCOPE_IDENTITY() to LAST_INSERT_ID()
   rewritten = rewritten.replace(/\bSCOPE_IDENTITY\(\)/gi, "LAST_INSERT_ID()");
   
+  // Convert CAST(x AS DATE) to DATE(x) - works in both
+  rewritten = rewritten.replace(/CAST\s*\(\s*(\w+)\s+AS\s+DATE\s*\)/gi, "DATE($1)");
+  
   // Convert SELECT TOP (n) to LIMIT n
   const topMatch = rewritten.match(/select\s+top\s*\(?\s*(\d+)\s*\)?\s+/i);
   if (topMatch) {
@@ -74,6 +77,14 @@ const rewriteSqlServerToMySql = (query, params) => {
         rewritten = rewritten + ` LIMIT ${limit}`;
       }
     }
+  }
+  
+  // Convert SELECT TOP 1 WITH TIES (complex, convert to simple LIMIT 1)
+  rewritten = rewritten.replace(/SELECT\s+TOP\s+1\s+WITH\s+TIES/gi, "SELECT");
+  if (rewritten.includes("ROW_NUMBER()")) {
+    // For MySQL, we need to simplify this - just get the first partition
+    // This is a simplification; for production, rewrite the entire query structure
+    rewritten = rewritten.replace(/\s+ORDER BY\s+ROW_NUMBER\(\).*$/gi, " LIMIT 1");
   }
 
   // Convert @param to ? and build values array

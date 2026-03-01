@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const poolPromise = require('../db');
 
+// NOTE: This is for fallback/logging purposes only.
+// Primary chat functionality uses Stream Chat (GetStream).
+
 // -----------------------------
 // Utility: Validate required fields
 // -----------------------------
@@ -77,7 +80,7 @@ router.get('/list/:userId', async (req, res) => {
     const result = await pool.request()
       .input("UserID", userId)
       .query(`
-        SELECT TOP 1 WITH TIES
+        SELECT 
           CAST(SenderID AS INT) AS SenderID,
           SenderName,
           SenderRole,
@@ -86,13 +89,26 @@ router.get('/list/:userId', async (req, res) => {
           ReceiverRole,
           Message,
           SentAt
-        FROM ChatMessages
-        WHERE SenderID = @UserID OR ReceiverID = @UserID
-        ORDER BY ROW_NUMBER() OVER (
-          PARTITION BY 
-            CASE WHEN SenderID = @UserID THEN ReceiverID ELSE SenderID END
-          ORDER BY SentAt DESC
-        );
+        FROM (
+          SELECT 
+            SenderID,
+            SenderName,
+            SenderRole,
+            ReceiverID,
+            ReceiverName,
+            ReceiverRole,
+            Message,
+            SentAt,
+            ROW_NUMBER() OVER (
+              PARTITION BY 
+                CASE WHEN SenderID = @UserID THEN ReceiverID ELSE SenderID END
+              ORDER BY SentAt DESC
+            ) AS rn
+          FROM ChatMessages
+          WHERE SenderID = @UserID OR ReceiverID = @UserID
+        ) AS ranked
+        WHERE rn = 1
+        ORDER BY SentAt DESC
       `);
 
     return res.json(result.recordset);

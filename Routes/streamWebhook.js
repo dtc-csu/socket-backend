@@ -48,7 +48,7 @@ router.post('/webhook', async (req, res) => {
       10
     );
 
-    // 5️⃣ Save to SQL
+    // 5️⃣ Save to ChatMessages table (optional logging/backup)
     const pool = await poolPromise;
     await pool.request()
       .input('SenderID', senderId)
