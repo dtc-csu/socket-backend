@@ -36,9 +36,30 @@ router.post('/', async (req, res) => {
   }
 });
 
-// ----------------------------------------------------
+// ============================================================
+// GET ALL ACCOUNT LOGS
+// ============================================================
+router.get('/', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+
+    const result = await pool.request()
+      .query(`
+        SELECT * FROM AccountLogs 
+        ORDER BY LogDate DESC
+      `);
+
+    res.json(result.recordset);
+
+  } catch (err) {
+    console.error('Error fetching all account logs:', err);
+    res.status(500).json({ success: false, message: 'Server error: ' + err.message });
+  }
+});
+
+// ============================================================
 // GET LOGS BY USER ID
-// ----------------------------------------------------
+// ============================================================
 router.get('/user/:userId', async (req, res) => {
   try {
     const pool = await poolPromise;
