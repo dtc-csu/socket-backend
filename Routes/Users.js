@@ -121,7 +121,22 @@ router.get('/archived/list', async (req, res) => {
 // ============================================================
 // GENERIC CRUD ROUTES (AFTER SPECIFIC ROUTES)
 // ============================================================
-router.get('/', generic.getAll("Users", "userid"));
+// GET ALL ACTIVE USERS (Disabled = 0, EndDate IS NULL)
+router.get('/', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .query(`
+        SELECT * FROM Users
+        WHERE Disabled = 0 AND EndDate IS NULL
+        ORDER BY FirstName, LastName
+      `);
+    res.json(result.recordset);
+  } catch (err) {
+    console.error("Error fetching active users:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ----------------------------------------------------
 // CREATE USER (HASH PASSWORD LIKE C#)
@@ -189,10 +204,48 @@ router.post('/', async (req, res) => {
       EndDate: EndDate || null
     };
 
-    req.body = newUser;
-    generic.add("Users", "userid")(req, res);
+    // Insert user directly to handle better error reporting
+    try {
+      const pool = await poolPromise;
+      const request = pool.request();
+      
+      request.input('FirstName', newUser.FirstName);
+      request.input('LastName', newUser.LastName);
+      request.input('Username', newUser.Username);
+      request.input('Password', newUser.Password);
+      request.input('Role', newUser.Role);
+      request.input('Email', newUser.Email);
+      request.input('MiddleName', newUser.MiddleName);
+      request.input('PhoneNumber', newUser.PhoneNumber);
+      request.input('Disabled', newUser.Disabled);
+      request.input('CreationDate', newUser.CreationDate);
+      request.input('ModificationDate', newUser.ModificationDate);
+      request.input('EndDate', newUser.EndDate);
+
+      const insertQuery = `
+        INSERT INTO Users (FirstName, LastName, Username, Password, Role, Email, MiddleName, PhoneNumber, Disabled, CreationDate, ModificationDate, EndDate)
+        VALUES (@FirstName, @LastName, @Username, @Password, @Role, @Email, @MiddleName, @PhoneNumber, @Disabled, @CreationDate, @ModificationDate, @EndDate)
+      `;
+      
+      await request.query(insertQuery);
+      
+      // Fetch the newly created user by username
+      const fetchRequest = pool.request();
+      fetchRequest.input('username', newUser.Username);
+      const result = await fetchRequest.query(`SELECT * FROM Users WHERE Username = @username`);
+      
+      if (!result.recordset || result.recordset.length === 0) {
+        return res.status(500).json({ error: 'User created but could not be retrieved' });
+      }
+      
+      res.status(201).json(result.recordset[0]);
+    } catch (insertErr) {
+      console.error("[USER CREATE ERROR]", insertErr);
+      res.status(500).json({ error: insertErr.message });
+    }
 
   } catch (err) {
+    console.error("[USER VALIDATION ERROR]", err);
     res.status(500).json({ error: err.message });
   }
 });
