@@ -11,7 +11,7 @@ router.get('/', async (req, res) => {
   try {
     const pool = await poolPromise;
     const result = await pool.request().query(`SELECT * FROM MedicalHistory ORDER BY CreatedAt DESC`);
-    res.json({ success: true, data: result.recordset });
+    res.json(result.recordset);
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -39,7 +39,7 @@ router.get('/patient/:patientId', async (req, res) => {
         ORDER BY CreatedAt DESC
       `);
 
-    return res.json({ success: true, data: result.recordset });
+    return res.json(result.recordset);
 
   } catch (err) {
     console.error("Error fetching medical history:", err);
@@ -65,7 +65,7 @@ router.get('/:id', async (req, res) => {
       `);
 
     if (result.recordset.length > 0) {
-      return res.json({ success: true, data: result.recordset[0] });
+      return res.json(result.recordset[0]);
     } else {
       return res.status(404).json({ success: false, message: 'Medical history not found' });
     }

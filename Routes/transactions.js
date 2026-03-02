@@ -30,7 +30,7 @@ router.get('/patient/:patientId', async (req, res) => {
         ORDER BY TransactionDate DESC
       `);
 
-    return res.json({ success: true, data: result.recordset });
+    return res.json(result.recordset);
 
   } catch (err) {
     console.error("Error fetching transactions:", err);
@@ -56,7 +56,7 @@ router.get('/service/:serviceType', async (req, res) => {
         ORDER BY TransactionDate DESC
       `);
 
-    return res.json({ success: true, data: result.recordset });
+    return res.json(result.recordset);
 
   } catch (err) {
     console.error("Error fetching transactions by service type:", err);
@@ -83,7 +83,7 @@ router.get('/date-range/:startDate/:endDate', async (req, res) => {
         ORDER BY TransactionDate DESC
       `);
 
-    return res.json({ success: true, data: result.recordset });
+    return res.json(result.recordset);
 
   } catch (err) {
     console.error("Error fetching transactions by date range:", err);

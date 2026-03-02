@@ -25,7 +25,7 @@ router.get('/', async (req, res) => {
       WHERE p.EndDate IS NULL OR p.EndDate > NOW()
       ORDER BY p.PatientID
     `);
-    res.json({ success: true, data: result.recordset });
+    res.json(result.recordset);
   } catch (err) {
     console.error("Error fetching all patients:", err);
     res.status(500).json({ success: false, message: err.message });
@@ -53,7 +53,7 @@ router.get('/archived/list', async (req, res) => {
       WHERE p.EndDate IS NOT NULL AND p.EndDate <= NOW()
       ORDER BY p.EndDate DESC
     `);
-    res.json({ success: true, data: result.recordset });
+    res.json(result.recordset);
   } catch (err) {
     console.error("Error fetching archived patients:", err);
     res.status(500).json({ success: false, message: err.message });

@@ -30,7 +30,7 @@ router.get('/patient/:patientId', async (req, res) => {
         ORDER BY RequestDate DESC
       `);
 
-    return res.json({ success: true, data: result.recordset });
+    return res.json(result.recordset);
 
   } catch (err) {
     console.error("Error fetching lab test requests:", err);

@@ -37,7 +37,7 @@ router.get('/patient/:patientId', async (req, res) => {
         WHERE PatientID = @patientId
         ORDER BY CreationDate DESC
       `);
-    res.json({ success: true, data: result.recordset });
+    res.json(result.recordset);
   } catch (err) {
     console.error("Error fetching patient dental records:", err);
     res.status(500).json({ success: false, message: err.message });

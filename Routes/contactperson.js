@@ -16,7 +16,7 @@ router.get("/Users/:id", async (req, res) => {
         WHERE UserID = @userId
         ORDER BY CreationDate DESC
       `);
-    res.json({ success: true, data: result.recordset });
+    res.json(result.recordset);
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

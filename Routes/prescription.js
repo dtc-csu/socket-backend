@@ -59,7 +59,7 @@ router.get("/patient/:patientID", async (req, res) => {
         WHERE p.PatientID = @patientID
         ORDER BY dm.CreationDate DESC
       `);
-    res.json({ success: true, data: result.recordset });
+    res.json(result.recordset);
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

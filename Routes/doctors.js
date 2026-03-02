@@ -42,7 +42,7 @@ router.get('/by-role/:role', async (req, res) => {
         WHERE u.role = @role
       `);
 
-    res.json({ success: true, data: result.recordset });
+    res.json(result.recordset);
   } catch (err) {
     res.status(500).json({
       success: false,

@@ -30,7 +30,7 @@ router.get('/patient/:patientId', async (req, res) => {
         ORDER BY CheckupDate DESC
       `);
 
-    return res.json({ success: true, data: result.recordset });
+    return res.json(result.recordset);
 
   } catch (err) {
     console.error("Error fetching medical checkups:", err);
@@ -56,7 +56,7 @@ router.get('/doctor/:doctorId', async (req, res) => {
         ORDER BY CheckupDate DESC
       `);
 
-    return res.json({ success: true, data: result.recordset });
+    return res.json(result.recordset);
 
   } catch (err) {
     console.error("Error fetching medical checkups by doctor:", err);

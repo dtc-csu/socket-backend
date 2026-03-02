@@ -61,7 +61,7 @@ router.get('/role/:role', async (req, res) => {
         ORDER BY FirstName, LastName
       `);
     
-    res.json({ success: true, data: result.recordset });
+    res.json(result.recordset);
   } catch (err) {
     console.error("Error fetching users by role:", err);
     res.status(500).json({ success: false, message: err.message });
@@ -107,7 +107,7 @@ router.get('/archived/list', async (req, res) => {
       ORDER BY EndDate DESC
     `);
     
-    res.json({ success: true, data: result.recordset });
+    res.json(result.recordset);
   } catch (err) {
     console.error("Error fetching archived users:", err);
     res.status(500).json({ success: false, message: err.message });
@@ -127,7 +127,7 @@ router.get('/', async (req, res) => {
         WHERE Disabled = 0 AND EndDate IS NULL
         ORDER BY FirstName, LastName
       `);
-    res.json({ success: true, data: result.recordset });
+    res.json(result.recordset);
   } catch (err) {
     console.error("Error fetching active users:", err);
     res.status(500).json({ success: false, message: err.message });
@@ -608,7 +608,7 @@ router.get('/patients', async (req, res) => {
         ORDER BY u.FirstName
       `);
 
-    res.json({ success: true, data: result.recordset });
+    res.json(result.recordset);
 
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

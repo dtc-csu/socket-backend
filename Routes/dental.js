@@ -17,7 +17,7 @@ router.get('/', async (req, res) => {
       FROM DentalRecord
       ORDER BY CreationDate DESC
     `);
-    res.json({ success: true, data: result.recordset });
+    res.json(result.recordset);
   } catch (err) {
     console.error("Error fetching dental records:", err);
     res.status(500).json({ success: false, message: err.message });
@@ -37,7 +37,7 @@ router.get('/patient/:patientId', async (req, res) => {
         WHERE PatientID = @patientId
         ORDER BY CreationDate DESC
       `);
-    res.json({ success: true, data: result.recordset });
+    res.json(result.recordset);
   } catch (err) {
     console.error("Error fetching patient dental records:", err);
     res.status(500).json({ success: false, message: err.message });
@@ -127,7 +127,7 @@ router.get('/tooth/record/:dentalRecordId', async (req, res) => {
         WHERE DentalRecordID = @dentalRecordId
         ORDER BY CreationDate ASC
       `);
-    res.json({ success: true, data: result.recordset });
+    res.json(result.recordset);
   } catch (err) {
     console.error('Error fetching dental teeth for record:', err);
     res.status(500).json({ success: false, message: err.message });

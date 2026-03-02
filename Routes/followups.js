@@ -20,7 +20,7 @@ router.get('/', async (req, res) => {
       FROM FollowUps
       ORDER BY FollowUpDate DESC
     `);
-    res.json({ success: true, data: result.recordset });
+    res.json(result.recordset);
   } catch (err) {
     console.error("Error fetching follow-ups:", err);
     res.status(500).json({ success: false, message: err.message });
@@ -40,7 +40,7 @@ router.get('/appointment/:appointmentId', async (req, res) => {
         WHERE AppointmentID = @appointmentId
         ORDER BY FollowUpDate DESC
       `);
-    res.json({ success: true, data: result.recordset });
+    res.json(result.recordset);
   } catch (err) {
     console.error("Error fetching appointment follow-ups:", err);
     res.status(500).json({ success: false, message: err.message });
@@ -60,7 +60,7 @@ router.get('/patient/:patientId', async (req, res) => {
         WHERE PatientID = @patientId
         ORDER BY FollowUpDate DESC
       `);
-    res.json({ success: true, data: result.recordset });
+    res.json(result.recordset);
   } catch (err) {
     console.error("Error fetching patient follow-ups:", err);
     res.status(500).json({ success: false, message: err.message });

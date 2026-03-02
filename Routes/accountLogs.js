@@ -52,7 +52,7 @@ router.get('/user/:userId', async (req, res) => {
         ORDER BY LogDate DESC
       `);
 
-    res.json({ success: true, data: result.recordset });
+    res.json(result.recordset);
 
   } catch (err) {
     console.error('Error fetching account logs:', err);
