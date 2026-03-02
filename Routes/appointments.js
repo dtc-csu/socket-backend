@@ -25,7 +25,7 @@ router.get('/maxslot', async (req, res) => {
     }
   } catch (err) {
     console.error("Error fetching maxslot:", err);
-    res.status(500).json({ error: err.message, maxSlot: 50 });
+    res.status(500).json({ success: false, message: err.message, maxSlot: 50 });
   }
 });
 
@@ -47,7 +47,7 @@ router.get('/', async (req, res) => {
     res.json(result.recordset);
   } catch (err) {
     console.error("Error fetching appointments:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -67,7 +67,7 @@ router.get('/patient/:patientId', async (req, res) => {
     res.json(result.recordset);
   } catch (err) {
     console.error("Error fetching patient appointments:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -76,7 +76,7 @@ router.post('/', async (req, res) => {
   const { patientId, appointmentDate, status = 'Pending', chiefComplaint } = req.body;
 
   if (!patientId || !appointmentDate) {
-    return res.status(400).json({ error: "patientId and appointmentDate are required" });
+    return res.status(400).json({ success: false, message: "patientId and appointmentDate are required" });
   }
 
   try {
@@ -93,10 +93,10 @@ router.post('/', async (req, res) => {
       `);
 
     const newAppointmentId = result.recordset[0].AppointmentID;
-    res.json({ success: true, appointmentId: newAppointmentId });
+    res.json({ success: true, message: 'Appointment created successfully', appointmentId: newAppointmentId });
   } catch (err) {
     console.error("Error creating appointment:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -109,7 +109,7 @@ router.put('/:appointmentId', async (req, res) => {
   console.log("AppointmentDate received:", AppointmentDate);
 
   if (!status) {
-    return res.status(400).json({ error: "Status is required" });
+    return res.status(400).json({ success: false, message: "Status is required" });
   }
 
   try {
@@ -141,7 +141,7 @@ router.put('/:appointmentId', async (req, res) => {
     res.json({ success: true, message: `Appointment ${appointmentId} updated to ${status}` });
   } catch (err) {
     console.error("Error updating appointment:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -161,7 +161,7 @@ router.get('/date/:date', async (req, res) => {
     res.json(result.recordset);
   } catch (err) {
     console.error("Error fetching appointments by date:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -178,7 +178,7 @@ router.get('/active/list', async (req, res) => {
     res.json(result.recordset);
   } catch (err) {
     console.error("Error fetching active appointments:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -206,7 +206,7 @@ router.get('/check/:patientId/:date', async (req, res) => {
     });
   } catch (err) {
     console.error("Error checking patient appointment:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -224,13 +224,13 @@ router.get('/:appointmentId', async (req, res) => {
       `);
     
     if (result.recordset.length === 0) {
-      return res.status(404).json({ error: "Appointment not found" });
+      return res.status(404).json({ success: false, message: "Appointment not found" });
     }
     
     res.json(result.recordset[0]);
   } catch (err) {
     console.error("Error fetching appointment:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -246,7 +246,7 @@ router.delete('/:appointmentId', async (req, res) => {
     res.json({ success: true, message: `Appointment ${appointmentId} deleted` });
   } catch (err) {
     console.error("Error deleting appointment:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -285,7 +285,7 @@ router.get('/search/filter', async (req, res) => {
     res.json(result.recordset);
   } catch (err) {
     console.error("Error searching appointments:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 

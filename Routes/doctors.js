@@ -16,7 +16,7 @@ router.get('/user/:userId', async (req, res) => {
       .input('userId', req.params.userId)
       .query('SELECT * FROM Doctors WHERE UserID = @userId');
 
-    res.json(result.recordset[0] || null);
+    res.json({ success: true, data: result.recordset[0] || null });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -42,7 +42,7 @@ router.get('/by-role/:role', async (req, res) => {
         WHERE u.role = @role
       `);
 
-    res.json(result.recordset);
+    res.json({ success: true, data: result.recordset });
   } catch (err) {
     res.status(500).json({
       success: false,

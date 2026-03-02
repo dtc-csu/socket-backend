@@ -25,10 +25,10 @@ router.get('/', async (req, res) => {
       WHERE p.EndDate IS NULL OR p.EndDate > NOW()
       ORDER BY p.PatientID
     `);
-    res.json(result.recordset);
+    res.json({ success: true, data: result.recordset });
   } catch (err) {
-    console.error("Error fetching patients:", err);
-    res.status(500).json({ error: err.message });
+    console.error("Error fetching all patients:", err);
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -53,10 +53,10 @@ router.get('/archived/list', async (req, res) => {
       WHERE p.EndDate IS NOT NULL AND p.EndDate <= NOW()
       ORDER BY p.EndDate DESC
     `);
-    res.json(result.recordset);
+    res.json({ success: true, data: result.recordset });
   } catch (err) {
     console.error("Error fetching archived patients:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -85,13 +85,13 @@ router.get('/patient/:patientId', async (req, res) => {
       `);
     
     if (result.recordset.length === 0) {
-      return res.status(404).json({ error: "Patient not found" });
+      return res.status(404).json({ success: false, message: "Patient not found" });
     }
     
-    res.json(result.recordset[0]);
+    res.json({ success: true, data: result.recordset[0] });
   } catch (err) {
     console.error("Error fetching patient:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -236,7 +236,7 @@ router.put('/patient/:patientId', async (req, res) => {
     res.json({ success: true, patient: result.recordset[0] });
   } catch (err) {
     console.error("Error updating patient:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -254,7 +254,7 @@ router.delete('/patient/:patientId', async (req, res) => {
     res.json({ success: true, message: `Patient ${patientId} deleted` });
   } catch (err) {
     console.error("Error deleting patient:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -273,7 +273,7 @@ router.put('/archive/:patientId', async (req, res) => {
     res.json({ success: true, message: `Patient ${patientId} archived` });
   } catch (err) {
     console.error("Error archiving patient:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -291,7 +291,7 @@ router.put('/restore/:patientId', async (req, res) => {
     res.json({ success: true, message: `Patient ${patientId} restored` });
   } catch (err) {
     console.error("Error restoring patient:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 

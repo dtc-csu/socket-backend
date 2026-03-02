@@ -36,9 +36,9 @@ router.get("/user/:userId", async (req, res) => {
         ORDER BY CreationDate DESC
       `);
 
-    res.json(result.recordset);
+    res.json({ success: true, data: result.recordset });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -58,7 +58,7 @@ router.post("/user/:userId", async (req, res) => {
       `);
 
     if (patientResult.recordset.length === 0) {
-      return res.status(404).json({ message: "Patient not found for this user" });
+      return res.status(404).json({ success: false, message: "Patient not found for this user" });
     }
 
     const patientId = patientResult.recordset[0].PatientID;
@@ -68,7 +68,7 @@ router.post("/user/:userId", async (req, res) => {
 
     await controller.add("FamilyInfo", "FamilyInfoID")(req, res);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -83,7 +83,7 @@ router.put("/patient/:id", async (req, res) => {
     // Use the generic controller to edit
     await controller.edit("FamilyInfo", "FamilyInfoID")(req, res);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 

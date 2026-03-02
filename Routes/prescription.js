@@ -35,7 +35,7 @@ router.get("/", async (req, res) => {
     res.json(result.recordset);
   } catch (err) {
     console.error("Error fetching prescriptions:", err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -59,9 +59,9 @@ router.get("/patient/:patientID", async (req, res) => {
         WHERE p.PatientID = @patientID
         ORDER BY dm.CreationDate DESC
       `);
-    res.json(result.recordset);
+    res.json({ success: true, data: result.recordset });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -78,7 +78,7 @@ router.post("/create", async (req, res) => {
 
   if (!PatientID || !DoctorID || !ServiceType) {
     return res.status(400).json({ 
-      error: "PatientID, DoctorID, and ServiceType are required" 
+      success: false, message: "PatientID, DoctorID, and ServiceType are required" 
     });
   }
 
@@ -100,12 +100,13 @@ router.post("/create", async (req, res) => {
     const prescriptionID = result.recordset[0].PrescriptionID;
     
     res.json({ 
+      success: true,
       message: "Prescription created successfully",
       PrescriptionID: prescriptionID
     });
   } catch (err) {
     console.error("Error creating prescription:", err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -117,7 +118,7 @@ router.post('/bulk', async (req, res) => {
   // drugs = [{ Quantity, Description, CreationDate }, ...]
 
   if (!PatientID || !DoctorID || !ServiceType || !Array.isArray(drugs)) {
-    return res.status(400).json({ error: 'PatientID, DoctorID, ServiceType and drugs[] are required' });
+    return res.status(400).json({ success: false, message: 'PatientID, DoctorID, ServiceType and drugs[] are required' });
   }
 
   try {
@@ -153,10 +154,10 @@ router.post('/bulk', async (req, res) => {
       }
     });
 
-    res.json({ message: 'Prescription created with drugs', PrescriptionID: prescriptionID, inserted: drugs.length });
+    res.json({ success: true, message: 'Prescription created with drugs', PrescriptionID: prescriptionID, inserted: drugs.length });
   } catch (err) {
     console.error('Error creating prescription bulk:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -173,7 +174,7 @@ router.post("/", async (req, res) => {
 
   if (!PrescriptionID) {
     return res.status(400).json({ 
-      error: "PrescriptionID is required. Create a prescription first using /prescription/create" 
+      success: false, message: "PrescriptionID is required. Create a prescription first using /prescription/create" 
     });
   }
 
@@ -192,10 +193,10 @@ router.post("/", async (req, res) => {
         VALUES (@PrescriptionID, @Quantity, @Description, @CreationDate)
       `);
 
-    res.json({ message: "Drug/Medicine added successfully" });
+    res.json({ success: true, message: "Drug/Medicine added successfully" });
   } catch (err) {
     console.error("Error adding drug/medicine:", err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -220,10 +221,10 @@ router.put("/:id", async (req, res) => {
         WHERE MedicineID = @MedicineID
       `);
 
-    res.json({ message: "Prescription updated successfully" });
+    res.json({ success: true, message: "Prescription updated successfully" });
 
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 

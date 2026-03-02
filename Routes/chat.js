@@ -29,7 +29,7 @@ router.post('/saveMessage', async (req, res) => {
     const missing = validateFields(req.body, [
       "SenderID", "ReceiverID", "SenderRole", "ReceiverRole", "Message"
     ]);
-    if (missing) return res.status(400).json({ error: missing });
+    if (missing) return res.status(400).json({ success: false, message: missing });
 
     const pool = await poolPromise;
 
@@ -61,10 +61,10 @@ router.post('/saveMessage', async (req, res) => {
         (@SenderID, @SenderName, @SenderRole, @ReceiverID, @ReceiverName, @ReceiverRole, @Message, GETDATE())
       `);
 
-    return res.json({ success: true });
+    return res.json({ success: true, message: "Message saved successfully" });
   } catch (err) {
     console.error("Error saving message:", err);
-    return res.status(500).json({ error: "Database insert failed" });
+    return res.status(500).json({ success: false, message: "Database insert failed" });
   }
 });
 
@@ -111,10 +111,10 @@ router.get('/list/:userId', async (req, res) => {
         ORDER BY SentAt DESC
       `);
 
-    return res.json(result.recordset);
+    return res.json({ success: true, data: result.recordset });
   } catch (err) {
     console.error("Error loading chat list:", err);
-    return res.status(500).json({ error: "Error loading chat list" });
+    return res.status(500).json({ success: false, message: "Error loading chat list" });
   }
 });
 
@@ -149,10 +149,10 @@ router.get('/thread/:myId/:peerId', async (req, res) => {
         ORDER BY SentAt ASC;
       `);
 
-    return res.json(result.recordset);
+    return res.json({ success: true, data: result.recordset });
   } catch (err) {
     console.error("Error loading chat thread:", err);
-    return res.status(500).json({ error: "Error loading chat thread" });
+    return res.status(500).json({ success: false, message: "Error loading chat thread" });
   }
 });
 // GET all messages
@@ -167,10 +167,10 @@ router.get('/getAllMessages', async (req, res) => {
         ORDER BY SentAt ASC
       `);
 
-    res.json(result.recordset);
+    res.json({ success: true, data: result.recordset });
   } catch (err) {
     console.error('Error fetching messages:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 

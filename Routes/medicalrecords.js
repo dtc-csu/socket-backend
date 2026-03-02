@@ -14,7 +14,7 @@ router.get("/patient/:patientId", async (req, res) => {
       .query("SELECT PatientIDNoAuto FROM Patient WHERE PatientID = @patientId");
 
     if (patientResult.recordset.length === 0) {
-      return res.status(404).json({ message: "Patient not found" });
+      return res.status(404).json({ success: false, message: "Patient not found" });
     }
 
     const patientIdNoAuto = patientResult.recordset[0].PatientIDNoAuto;
@@ -50,7 +50,7 @@ router.get('/summary/patient/:patientId', async (req, res) => {
       .query('SELECT PatientIDNoAuto FROM Patient WHERE PatientID = @patientId');
 
     if (patientResult.recordset.length === 0) {
-      return res.status(404).json({ message: 'Patient not found' });
+      return res.status(404).json({ success: false, message: 'Patient not found' });
     }
 
     const patientIdNoAuto = patientResult.recordset[0].PatientIDNoAuto;

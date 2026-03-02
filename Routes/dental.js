@@ -17,10 +17,10 @@ router.get('/', async (req, res) => {
       FROM DentalRecord
       ORDER BY CreationDate DESC
     `);
-    res.json(result.recordset);
+    res.json({ success: true, data: result.recordset });
   } catch (err) {
     console.error("Error fetching dental records:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -37,10 +37,10 @@ router.get('/patient/:patientId', async (req, res) => {
         WHERE PatientID = @patientId
         ORDER BY CreationDate DESC
       `);
-    res.json(result.recordset);
+    res.json({ success: true, data: result.recordset });
   } catch (err) {
     console.error("Error fetching patient dental records:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -55,7 +55,7 @@ router.post('/', async (req, res) => {
   } = req.body;
 
   if (!PatientID || !CreationDate) {
-    return res.status(400).json({ error: "PatientID and CreationDate are required" });
+    return res.status(400).json({ success: false, message: "PatientID and CreationDate are required" });
   }
 
   try {
@@ -73,11 +73,10 @@ router.post('/', async (req, res) => {
       `);
 
     const newDentalRecordId = result.recordset[0].DentalRecordID;
-    // Return both legacy and normalized keys so clients can handle either shape
-    res.json({ success: true, DentalRecordID: newDentalRecordId, id: newDentalRecordId });
+    res.json({ success: true, message: 'Dental record created successfully', DentalRecordID: newDentalRecordId, id: newDentalRecordId });
   } catch (err) {
     console.error("Error creating dental record:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -91,7 +90,7 @@ router.post('/tooth', async (req, res) => {
   } = req.body;
 
   if (!DentalRecordID || !ToothNumber || !ProcedureDone || !CreationDate) {
-    return res.status(400).json({ error: "DentalRecordID, ToothNumber, ProcedureDone, and CreationDate are required" });
+    return res.status(400).json({ success: false, message: "DentalRecordID, ToothNumber, ProcedureDone, and CreationDate are required" });
   }
 
   try {
@@ -108,10 +107,10 @@ router.post('/tooth', async (req, res) => {
       `);
 
     const newDentalToothId = result.recordset[0].DentalToothID;
-    res.json({ success: true, DentalToothID: newDentalToothId });
+    res.json({ success: true, message: 'Dental tooth created successfully', DentalToothID: newDentalToothId });
   } catch (err) {
     console.error("Error creating dental tooth:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -128,10 +127,10 @@ router.get('/tooth/record/:dentalRecordId', async (req, res) => {
         WHERE DentalRecordID = @dentalRecordId
         ORDER BY CreationDate ASC
       `);
-    res.json(result.recordset);
+    res.json({ success: true, data: result.recordset });
   } catch (err) {
     console.error('Error fetching dental teeth for record:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -144,7 +143,7 @@ router.post('/tooth/bulk', async (req, res) => {
   const teeth = req.body.teeth || req.body.Teeth;
 
   if (!DentalRecordID || !Array.isArray(teeth)) {
-    return res.status(400).json({ error: 'DentalRecordID (or RecordId) and teeth/Teeth array are required' });
+    return res.status(400).json({ success: false, message: 'DentalRecordID (or RecordId) and teeth/Teeth array are required' });
   }
 
   try {
@@ -169,10 +168,10 @@ router.post('/tooth/bulk', async (req, res) => {
       }
     });
 
-    res.json({ success: true, inserted: teeth.length });
+    res.json({ success: true, message: 'Dental teeth replaced successfully', inserted: teeth.length });
   } catch (err) {
     console.error('Error replacing dental teeth (transactional):', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -192,7 +191,7 @@ router.delete('/:dentalRecordId', async (req, res) => {
     res.json({ success: true, message: `Dental record ${dentalRecordId} deleted` });
   } catch (err) {
     console.error("Error deleting dental record:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 

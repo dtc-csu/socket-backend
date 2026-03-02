@@ -20,10 +20,10 @@ router.get('/', async (req, res) => {
       FROM FollowUps
       ORDER BY FollowUpDate DESC
     `);
-    res.json(result.recordset);
+    res.json({ success: true, data: result.recordset });
   } catch (err) {
     console.error("Error fetching follow-ups:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -40,10 +40,10 @@ router.get('/appointment/:appointmentId', async (req, res) => {
         WHERE AppointmentID = @appointmentId
         ORDER BY FollowUpDate DESC
       `);
-    res.json(result.recordset);
+    res.json({ success: true, data: result.recordset });
   } catch (err) {
     console.error("Error fetching appointment follow-ups:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -60,10 +60,10 @@ router.get('/patient/:patientId', async (req, res) => {
         WHERE PatientID = @patientId
         ORDER BY FollowUpDate DESC
       `);
-    res.json(result.recordset);
+    res.json({ success: true, data: result.recordset });
   } catch (err) {
     console.error("Error fetching patient follow-ups:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -80,7 +80,7 @@ router.post('/', async (req, res) => {
   } = req.body;
 
   if (!appointmentId || !patientId || !followUpDate) {
-    return res.status(400).json({ error: "appointmentId, patientId, and followUpDate are required" });
+    return res.status(400).json({ success: false, message: "appointmentId, patientId, and followUpDate are required" });
   }
 
   try {
@@ -100,10 +100,10 @@ router.post('/', async (req, res) => {
       `);
 
     const newFollowUpId = result.recordset[0].FollowUpID;
-    res.json({ success: true, followUpId: newFollowUpId });
+    res.json({ success: true, message: 'Follow-up created successfully', followUpId: newFollowUpId });
   } catch (err) {
     console.error("Error creating follow-up:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -137,7 +137,7 @@ router.put('/:followUpId', async (req, res) => {
     res.json({ success: true, message: `Follow-up ${followUpId} updated` });
   } catch (err) {
     console.error("Error updating follow-up:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -152,7 +152,7 @@ router.delete('/:followUpId', async (req, res) => {
     res.json({ success: true, message: `Follow-up ${followUpId} deleted` });
   } catch (err) {
     console.error("Error deleting follow-up:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 

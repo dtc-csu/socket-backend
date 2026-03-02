@@ -21,7 +21,7 @@ router.post("/push-call", async (req, res) => {
   const token = await redis.get(`fcm:${toUserId}`);
 
   if (!token) {
-    return res.status(404).json({ error: "User offline" });
+    return res.status(404).json({ success: false, message: "User offline" });
   }
 
   await admin.messaging().send({

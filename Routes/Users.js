@@ -38,13 +38,13 @@ router.get('/:id', async (req, res) => {
       `);
     
     if (result.recordset.length === 0) {
-      return res.status(404).json({ error: "User not found" });
+      return res.status(404).json({ success: false, message: "User not found" });
     }
     
-    res.json(result.recordset[0]);
+    res.json({ success: true, data: result.recordset[0] });
   } catch (err) {
     console.error("Error fetching user:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -61,10 +61,10 @@ router.get('/role/:role', async (req, res) => {
         ORDER BY FirstName, LastName
       `);
     
-    res.json(result.recordset);
+    res.json({ success: true, data: result.recordset });
   } catch (err) {
     console.error("Error fetching users by role:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -73,7 +73,7 @@ router.get('/exists/username', async (req, res) => {
   const { username, excludeId } = req.query;
   
   if (!username) {
-    return res.status(400).json({ error: "Username query parameter is required" });
+    return res.status(400).json({ success: false, message: "Username query parameter is required" });
   }
   
   try {
@@ -90,14 +90,10 @@ router.get('/exists/username', async (req, res) => {
     const result = await request.query(query);
     const exists = result.recordset[0].count > 0;
     
-    res.json({ 
-      exists,
-      username,
-      message: exists ? "Username is already taken" : "Username is available"
-    });
+    res.json({ success: true, exists, username, message: exists ? "Username is already taken" : "Username is available" });
   } catch (err) {
     console.error("Error checking username:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -111,10 +107,10 @@ router.get('/archived/list', async (req, res) => {
       ORDER BY EndDate DESC
     `);
     
-    res.json(result.recordset);
+    res.json({ success: true, data: result.recordset });
   } catch (err) {
     console.error("Error fetching archived users:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -131,10 +127,10 @@ router.get('/', async (req, res) => {
         WHERE Disabled = 0 AND EndDate IS NULL
         ORDER BY FirstName, LastName
       `);
-    res.json(result.recordset);
+    res.json({ success: true, data: result.recordset });
   } catch (err) {
     console.error("Error fetching active users:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -147,23 +143,38 @@ router.post('/', async (req, res) => {
 
     // Validation
     if (!FirstName || !LastName || !Username || !Password || !Role || !Email) {
-      return res.status(400).json({ error: 'FirstName, LastName, Username, Password, Role, and Email are required' });
+      return res.status(400).json({ 
+        success: false, 
+        message: 'FirstName, LastName, Username, Password, Role, and Email are required' 
+      });
     }
 
     if (Username.length > 20) {
-      return res.status(400).json({ error: 'Username must be 20 characters or less' });
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Username must be 20 characters or less' 
+      });
     }
 
     if (Username.length < 3) {
-      return res.status(400).json({ error: 'Username must be at least 3 characters' });
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Username must be at least 3 characters' 
+      });
     }
 
     if (Email.length > 30) {
-      return res.status(400).json({ error: 'Email must be 30 characters or less' });
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Email must be 30 characters or less' 
+      });
     }
 
     if (Password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Password must be at least 6 characters' 
+      });
     }
 
     // Check if username already exists
@@ -173,7 +184,10 @@ router.post('/', async (req, res) => {
       .query(`SELECT COUNT(*) as count FROM Users WHERE Username = @username`);
     
     if (checkUsername.recordset[0].count > 0) {
-      return res.status(409).json({ error: 'Username already exists' });
+      return res.status(409).json({ 
+        success: false, 
+        message: 'Username already exists' 
+      });
     }
 
     // Check if email already exists
@@ -182,7 +196,10 @@ router.post('/', async (req, res) => {
       .query(`SELECT COUNT(*) as count FROM Users WHERE Email = @email`);
     
     if (checkEmail.recordset[0].count > 0) {
-      return res.status(409).json({ error: 'Email already exists' });
+      return res.status(409).json({ 
+        success: false, 
+        message: 'Email already exists' 
+      });
     }
 
     // Hash password like C#
@@ -232,18 +249,31 @@ router.post('/', async (req, res) => {
       const result = await fetchRequest.query(`SELECT * FROM Users WHERE Username = @username`);
       
       if (!result.recordset || result.recordset.length === 0) {
-        return res.status(500).json({ error: 'User created but could not be retrieved' });
+        return res.status(500).json({ 
+          success: false, 
+          message: 'User created but could not be retrieved' 
+        });
       }
       
-      res.status(201).json(result.recordset[0]);
+      res.status(201).json({ 
+        success: true, 
+        message: 'User created successfully',
+        data: result.recordset[0]
+      });
     } catch (insertErr) {
       console.error("[USER CREATE ERROR]", insertErr);
-      res.status(500).json({ error: insertErr.message });
+      res.status(500).json({ 
+        success: false, 
+        message: insertErr.message 
+      });
     }
 
   } catch (err) {
     console.error("[USER VALIDATION ERROR]", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ 
+      success: false, 
+      message: err.message 
+    });
   }
 });
 
@@ -255,29 +285,63 @@ router.put('/:id', async (req, res) => {
     const { FirstName, LastName, Username, Password, Role, Email } = req.body;
 
     if (FirstName !== undefined && !FirstName)
-      return res.status(400).json({ error: 'FirstName cannot be empty' });
+      return res.status(400).json({ success: false, message: 'FirstName cannot be empty' });
 
     if (LastName !== undefined && !LastName)
-      return res.status(400).json({ error: 'LastName cannot be empty' });
+      return res.status(400).json({ success: false, message: 'LastName cannot be empty' });
 
     if (Username !== undefined && (Username.length > 20 || !Username))
-      return res.status(400).json({ error: 'Username invalid' });
+      return res.status(400).json({ success: false, message: 'Username invalid' });
 
     if (Role !== undefined && !Role)
-      return res.status(400).json({ error: 'Role invalid' });
+      return res.status(400).json({ success: false, message: 'Role invalid' });
 
     if (Email !== undefined && (Email.length > 30 || !Email))
-      return res.status(400).json({ error: 'Email invalid' });
+      return res.status(400).json({ success: false, message: 'Email invalid' });
 
     // Hash password if updating
     if (Password) {
       req.body.Password = hashPassword(Password);
     }
 
-    generic.edit("Users", "userid")(req, res);
+    // Update user directly with success/message format
+    const pool = await poolPromise;
+    const userId = req.params.id;
+    const keys = Object.keys(req.body).filter(k => req.body[k] !== undefined);
+    const values = keys.map(k => req.body[k]);
+
+    if (keys.length === 0) {
+      return res.status(400).json({ success: false, message: 'No fields to update' });
+    }
+
+    const setQuery = keys.map((k, i) => `${k}=@param${i}`).join(",");
+    const request = pool.request();
+    keys.forEach((k, i) => request.input(`param${i}`, values[i]));
+    request.input("userId", userId);
+    request.input("now", new Date());
+
+    const query = `
+      UPDATE Users 
+      SET ${setQuery}, ModificationDate = GETDATE()
+      WHERE userid = @userId;
+      SELECT * FROM Users WHERE userid = @userId
+    `;
+
+    const result = await request.query(query);
+
+    if (!result.recordset || result.recordset.length === 0) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'User updated successfully',
+      data: result.recordset[0]
+    });
 
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[USER UPDATE ERROR]", err);
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -291,17 +355,29 @@ router.put('/:id/deactivate', async (req, res) => {
     // Mark user as disabled and set end date
     await pool.request()
       .input('userId', userId)
-      .input('now', new Date())
       .query(`
         UPDATE Users 
-        SET Disabled = 1, EndDate = @now
+        SET Disabled = 1, EndDate = GETDATE()
         WHERE userid = @userId
       `);
     
-    res.json({ success: true, message: `User ${userId} deactivated successfully` });
+    // Fetch updated user
+    const fetchRequest = pool.request();
+    fetchRequest.input('userId', userId);
+    const result = await fetchRequest.query(`SELECT * FROM Users WHERE userid = @userId`);
+    
+    if (!result.recordset || result.recordset.length === 0) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    
+    res.json({ 
+      success: true, 
+      message: 'User deactivated successfully',
+      data: result.recordset[0]
+    });
   } catch (err) {
     console.error("Error deactivating user:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -324,10 +400,23 @@ router.put('/:id/reactivate', async (req, res) => {
         WHERE userid = @userId
       `);
     
-    res.json({ success: true, message: `User ${userId} reactivated successfully` });
+    // Fetch updated user
+    const fetchRequest = pool.request();
+    fetchRequest.input('userId', userId);
+    const result = await fetchRequest.query(`SELECT * FROM Users WHERE userid = @userId`);
+    
+    if (!result.recordset || result.recordset.length === 0) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    
+    res.json({ 
+      success: true, 
+      message: 'User reactivated successfully',
+      data: result.recordset[0]
+    });
   } catch (err) {
     console.error("Error reactivating user:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -494,13 +583,13 @@ router.get('/patient-id-no-auto/:userId', async (req, res) => {
       .query('SELECT PatientID FROM Patient WHERE UserID = @userId');
 
     if (result.recordset.length > 0) {
-      res.json({ PatientIDNoAuto: result.recordset[0].PatientIDNoAuto });
+      res.json({ success: true, PatientIDNoAuto: result.recordset[0].PatientIDNoAuto });
     } else {
-      res.status(404).json({ error: 'Patient not found' });
+      res.status(404).json({ success: false, message: 'Patient not found' });
     }
 
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -519,10 +608,10 @@ router.get('/patients', async (req, res) => {
         ORDER BY u.FirstName
       `);
 
-    res.json(result.recordset);
+    res.json({ success: true, data: result.recordset });
 
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 

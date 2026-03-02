@@ -11,9 +11,9 @@ router.get('/', async (req, res) => {
   try {
     const pool = await poolPromise;
     const result = await pool.request().query(`SELECT * FROM MedicalHistory ORDER BY CreatedAt DESC`);
-    res.json(result.recordset);
+    res.json({ success: true, data: result.recordset });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
