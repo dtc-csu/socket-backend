@@ -33,14 +33,16 @@ module.exports = (poolPromise) => {
     add: (tableName, pkName = "id") => async (req, res) => {
     try {
       const pool = await poolPromise;
-      const keys = Object.keys(req.body);
-      const values = Object.values(req.body);
+      const keys = Object.keys(req.body).filter(k => req.body[k] !== undefined);
+      const values = keys.map(k => req.body[k]);
 
+      // Build INSERT query with only defined fields
       const request = pool.request();
       keys.forEach((k, i) => request.input(`param${i}`, values[i]));
 
       const params = keys.map((_, i) => `@param${i}`).join(",");
 
+      // Single query that works for both SQL Server and MySQL
       const query = `
         INSERT INTO ${tableName} (${keys.join(",")})
         VALUES (${params});
@@ -49,8 +51,24 @@ module.exports = (poolPromise) => {
 
       const result = await request.query(query);
 
-      res.json(result.recordset[0]);
+      // Handle result - for MySQL, might be nested differently
+      let newRecord = null;
+      if (result.recordset && result.recordset.length > 0) {
+        newRecord = result.recordset[0];
+      } else if (Array.isArray(result) && result.length > 0) {
+        // Fallback for alternate result structure
+        newRecord = Array.isArray(result[result.length - 1]) ? result[result.length - 1][0] : result[0];
+      }
+
+      if (!newRecord) {
+        return res.status(500).json({ 
+          error: `Failed to retrieve newly created record. Result structure: ${JSON.stringify(result).substring(0, 200)}` 
+        });
+      }
+
+      res.json(newRecord);
     } catch (err) {
+      console.error(`[${tableName} ADD ERROR]`, err.message, err.stack);
       res.status(500).json({ error: err.message });
     }
   },
