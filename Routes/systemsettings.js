@@ -41,4 +41,47 @@ router.get('/name/:settingName', async (req, res) => {
   }
 });
 
+// ----------------------------------------------------
+// EDIT SYSTEM SETTING BY NAME
+// ----------------------------------------------------
+router.put('/name/:settingName', async (req, res) => {
+  const settingName = req.params.settingName;
+
+  try {
+    const updates = req.body || {};
+    const keys = Object.keys(updates).filter((key) => key !== 'SettingName');
+
+    if (keys.length === 0) {
+      return res.status(400).json({ success: false, message: 'No fields provided to update' });
+    }
+
+    const pool = await poolPromise;
+    const request = pool.request().input('settingName', settingName);
+
+    const setClause = keys.map((key, index) => {
+      request.input(`param${index}`, updates[key]);
+      return `${key} = @param${index}`;
+    }).join(', ');
+
+    const result = await request.query(`
+      UPDATE SystemSettings
+      SET ${setClause}
+      WHERE SettingName = @settingName;
+
+      SELECT *
+      FROM SystemSettings
+      WHERE SettingName = @settingName;
+    `);
+
+    if (!result.recordset || result.recordset.length === 0) {
+      return res.status(404).json({ success: false, message: 'System setting not found' });
+    }
+
+    return res.json({ success: true, message: 'System setting updated successfully', data: result.recordset[0] });
+  } catch (err) {
+    console.error('Error updating system setting:', err);
+    return res.status(500).json({ success: false, message: 'Server error: ' + err.message });
+  }
+});
+
 module.exports = router;
