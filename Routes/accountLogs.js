@@ -45,8 +45,14 @@ router.get('/', async (req, res) => {
 
     const result = await pool.request()
       .query(`
-        SELECT * FROM AccountLogs 
-        ORDER BY LogDate DESC
+        SELECT 
+          al.*,
+          u.Username,
+          u.Role,
+          CONCAT(u.FirstName, ' ', COALESCE(CONCAT(u.MiddleName, ' '), ''), u.LastName) AS FullName
+        FROM AccountLogs al
+        LEFT JOIN Users u ON al.UserID = u.UserID
+        ORDER BY al.LogDate DESC
       `);
 
     res.json(result.recordset);
@@ -68,9 +74,15 @@ router.get('/user/:userId', async (req, res) => {
     const result = await pool.request()
       .input('UserID', userId)
       .query(`
-        SELECT * FROM AccountLogs 
-        WHERE UserID = @UserID 
-        ORDER BY LogDate DESC
+        SELECT 
+          al.*,
+          u.Username,
+          u.Role,
+          CONCAT(u.FirstName, ' ', COALESCE(CONCAT(u.MiddleName, ' '), ''), u.LastName) AS FullName
+        FROM AccountLogs al
+        LEFT JOIN Users u ON al.UserID = u.UserID
+        WHERE al.UserID = @UserID
+        ORDER BY al.LogDate DESC
       `);
 
     res.json(result.recordset);
