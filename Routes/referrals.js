@@ -21,7 +21,8 @@ router.get('/', async (req, res) => {
         r.DoctorID,
         CONCAT(u.FirstName, ' ', COALESCE(CONCAT(u.MiddleName, ' '), ''), u.LastName) AS DoctorName
       FROM Referral r
-      LEFT JOIN Users u ON r.DoctorID = u.UserID
+      LEFT JOIN Doctors d ON r.DoctorID = d.DoctorID
+      LEFT JOIN Users u ON d.UserID = u.UserID
       ORDER BY r.CreationDate DESC
     `);
     res.json(result.recordset);
@@ -45,7 +46,8 @@ router.get('/patient/:patientId', async (req, res) => {
           r.*,
           CONCAT(u.FirstName, ' ', COALESCE(CONCAT(u.MiddleName, ' '), ''), u.LastName) AS DoctorName
         FROM Referral r
-        LEFT JOIN Users u ON r.DoctorID = u.UserID
+        LEFT JOIN Doctors d ON r.DoctorID = d.DoctorID
+        LEFT JOIN Users u ON d.UserID = u.UserID
         WHERE r.PatientID = @patientId
         ORDER BY r.CreationDate DESC
       `);
@@ -70,7 +72,8 @@ router.get('/doctor/:doctorId', async (req, res) => {
           r.*,
           CONCAT(u.FirstName, ' ', COALESCE(CONCAT(u.MiddleName, ' '), ''), u.LastName) AS DoctorName
         FROM Referral r
-        LEFT JOIN Users u ON r.DoctorID = u.UserID
+        LEFT JOIN Doctors d ON r.DoctorID = d.DoctorID
+        LEFT JOIN Users u ON d.UserID = u.UserID
         WHERE r.DoctorID = @doctorId
         ORDER BY r.CreationDate DESC
       `);
@@ -95,7 +98,8 @@ router.get('/:referralId', async (req, res) => {
           r.*,
           CONCAT(u.FirstName, ' ', COALESCE(CONCAT(u.MiddleName, ' '), ''), u.LastName) AS DoctorName
         FROM Referral r
-        LEFT JOIN Users u ON r.DoctorID = u.UserID
+        LEFT JOIN Doctors d ON r.DoctorID = d.DoctorID
+        LEFT JOIN Users u ON d.UserID = u.UserID
         WHERE r.ReferralID = @referralId
       `);
     
