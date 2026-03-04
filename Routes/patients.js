@@ -4,53 +4,9 @@ const router = express.Router();
 const poolPromise = require('../db');
 const generic = require('../Controllers/genericController')(poolPromise);
 
-// ====================================================
-// #region MAPPINGS
-// ====================================================
-const patientToModel = (patient, user = null) => {
-  if (!patient) return null;
-
-  return {
-    PatientID: patient.PatientID,
-    UserID: patient.UserID,
-    BirthDate: patient.BirthDate,
-    Age: patient.Age,
-    Religion: patient.Religion,
-    Nationality: patient.Nationality,
-    NickName: patient.NickName,
-    CivilStatus: patient.CivilStatus,
-    Sex: patient.Sex,
-    HomeAddress: patient.HomeAddress,
-    HomeNo: patient.HomeNo,
-    OfficeNo: patient.OfficeNo,
-    Occupation: patient.Occupation,
-    CitizenShips: patient.CitizenShips,
-    CollegeOffice: patient.CollegeOffice,
-    Course: patient.Course,
-    YearLevel: patient.YearLevel,
-    CreationDate: patient.CreationDate,
-    PicFilePath: patient.PicFilePath,
-    FirstName: user?.FirstName || '',
-    MiddleName: user?.MiddleName || '',
-    LastName: user?.LastName || '',
-    FullName: user ? `${user.FirstName} ${user.MiddleName || ''} ${user.LastName}`.trim() : '',
-    Email: user?.Email || '',
-    PhoneNumber: user?.PhoneNumber || ''
-  };
-};
-// #endregion MAPPINGS
-
-// ====================================================
-// #region CREATE
-// ====================================================
-router.post('/', generic.add("Patient", "PatientID"));
-// #endregion CREATE
-
-// ====================================================
-// #region READ
-// ====================================================
-
-// ✅ Get all patients
+// ----------------------------------------------------
+// GET ALL PATIENTS WITH ENRICHED USER DATA (ACTIVE ONLY)
+// ----------------------------------------------------
 router.get('/', async (req, res) => {
   try {
     const pool = await poolPromise;
@@ -69,56 +25,79 @@ router.get('/', async (req, res) => {
       WHERE p.EndDate IS NULL OR p.EndDate > NOW()
       ORDER BY p.PatientID
     `);
-    res.json({ success: true, data: result.recordset });
+    res.json(result.recordset);
   } catch (err) {
-    console.error('Error fetching all patients:', err);
+    console.error("Error fetching all patients:", err);
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// ✅ Get patient by ID
-router.get('/patient/:patientId', async (req, res) => {
-  const patientId = req.params.patientId;
-
+// ----------------------------------------------------
+// GET ARCHIVED PATIENTS (SOFT DELETED)
+// ----------------------------------------------------
+router.get('/archived/list', async (req, res) => {
   try {
     const pool = await poolPromise;
-
-    // 1️⃣ Get the patient record
-    const patientResult = await pool.request()
-      .input('patientId', patientId)
-      .query('SELECT * FROM Patient WHERE PatientID = @patientId');
-
-    if (patientResult.recordset.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: `Patient with ID ${patientId} not found`
-      });
-    }
-
-    const patient = patientResult.recordset[0];
-
-    // 2️⃣ Get user info to populate FullName and ContactNo
-    let user = null;
-    if (patient.UserID) {
-      const userResult = await pool.request()
-        .input('userId', patient.UserID)
-        .query('SELECT * FROM Users WHERE UserID = @userId');
-
-      if (userResult.recordset.length > 0) {
-        user = userResult.recordset[0];
-      }
-    }
-
-    const model = patientToModel(patient, user);
-    res.json({ success: true, data: model });
-
+    const result = await pool.request().query(`
+      SELECT 
+        p.*,
+        u.FirstName,
+        u.MiddleName,
+        u.LastName,
+        u.Email,
+        u.PhoneNumber,
+        u.Role,
+        CONCAT(u.FirstName, ' ', COALESCE(CONCAT(u.MiddleName, ' '), ''), u.LastName) AS FullName
+      FROM Patient p
+      LEFT JOIN Users u ON p.UserID = u.UserID
+      WHERE p.EndDate IS NOT NULL AND p.EndDate <= NOW()
+      ORDER BY p.EndDate DESC
+    `);
+    res.json(result.recordset);
   } catch (err) {
-    console.error('Error fetching patient:', err);
+    console.error("Error fetching archived patients:", err);
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// ✅ Get patient info by UserID
+// ----------------------------------------------------
+// GET PATIENT BY PATIENTID (STRING KEY)
+// ----------------------------------------------------
+router.get('/patient/:patientId', async (req, res) => {
+  const patientId = req.params.patientId;
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('patientId', patientId)
+      .query(`
+        SELECT 
+          p.*,
+          u.FirstName,
+          u.MiddleName,
+          u.LastName,
+          u.Email,
+          u.PhoneNumber,
+          u.Role,
+          CONCAT(u.FirstName, ' ', COALESCE(CONCAT(u.MiddleName, ' '), ''), u.LastName) AS FullName
+        FROM Patient p
+        LEFT JOIN Users u ON p.UserID = u.UserID
+        WHERE p.PatientID = @patientId
+      `);
+    
+    if (result.recordset.length === 0) {
+      return res.status(404).json({ success: false, message: "Patient not found" });
+    }
+    
+    res.json({ success: true, data: result.recordset[0] });
+  } catch (err) {
+    console.error("Error fetching patient:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ----------------------------------------------------
+// GET PATIENT INFO BY USERID
+// ----------------------------------------------------
 router.get('/by-user/:userId', async (req, res) => {
   const userId = req.params.userId;
 
@@ -149,61 +128,237 @@ router.get('/by-user/:userId', async (req, res) => {
     }
 
   } catch (err) {
-    console.error('Error fetching patient info:', err);
+    console.error("Error fetching patient info:", err);
     return res.status(500).json({ success: false, message: 'Server error: ' + err.message });
   }
 });
 
-// ✅ Get archived patients
-router.get('/archived/list', async (req, res) => {
+// ----------------------------------------------------
+// CREATE NEW PATIENT
+// ----------------------------------------------------
+router.post('/', async (req, res) => {
+  const model = req.body;
+
+  // Validation
+  if (!model || !model.UserID) {
+    return res.status(400).json({
+      success: false,
+      message: 'AddPatient failed: model or UserID is null'
+    });
+  }
+
   try {
     const pool = await poolPromise;
-    const result = await pool.request().query(`
-      SELECT 
-        p.*,
-        u.FirstName,
-        u.MiddleName,
-        u.LastName,
-        u.Email,
-        u.PhoneNumber,
-        u.Role,
-        CONCAT(u.FirstName, ' ', COALESCE(CONCAT(u.MiddleName, ' '), ''), u.LastName) AS FullName
-      FROM Patient p
-      LEFT JOIN Users u ON p.UserID = u.UserID
-      WHERE p.EndDate IS NOT NULL AND p.EndDate <= NOW()
-      ORDER BY p.EndDate DESC
-    `);
-    res.json({ success: true, data: result.recordset });
+
+    // Check if user exists
+    const userResult = await pool.request()
+      .input('userId', model.UserID)
+      .query('SELECT * FROM Users WHERE UserID = @userId');
+
+    if (userResult.recordset.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: `User with ID ${model.UserID} not found`
+      });
+    }
+
+    // Check if patient already exists
+    if (model.PatientID) {
+      const existingPatient = await pool.request()
+        .input('patientId', model.PatientID)
+        .query('SELECT PatientID FROM Patient WHERE PatientID = @patientId');
+
+      if (existingPatient.recordset.length > 0) {
+        return res.status(409).json({
+          success: false,
+          message: `Patient with ID ${model.PatientID} already exists`
+        });
+      }
+    }
+
+    // Insert patient record
+    await pool.request()
+      .input('PatientID', model.PatientID || null)
+      .input('UserID', model.UserID)
+      .input('BirthDate', model.BirthDate || null)
+      .input('Age', model.Age || null)
+      .input('Religion', model.Religion?.trim() || null)
+      .input('Nationality', model.Nationality?.trim() || null)
+      .input('NickName', model.NickName?.trim() || null)
+      .input('CivilStatus', model.CivilStatus?.trim() || null)
+      .input('Sex', model.Sex?.trim() || null)
+      .input('HomeAddress', model.HomeAddress?.trim() || null)
+      .input('HomeNo', model.HomeNo || null)
+      .input('OfficeNo', model.OfficeNo || null)
+      .input('Occupation', model.Occupation?.trim() || null)
+      .input('CitizenShips', model.CitizenShips?.trim() || null)
+      .input('CollegeOffice', model.CollegeOffice?.trim() || null)
+      .input('Course', model.Course?.trim() || null)
+      .input('YearLevel', model.YearLevel?.trim() || null)
+      .input('PicFilePath', model.PicFilePath || null)
+      .query(`
+        INSERT INTO Patient 
+        (PatientID, UserID, BirthDate, Age, Religion, Nationality, NickName, CivilStatus, Sex, HomeAddress, HomeNo, OfficeNo, Occupation, CitizenShips, CollegeOffice, Course, YearLevel, PicFilePath, CreationDate)
+        VALUES 
+        (@PatientID, @UserID, @BirthDate, @Age, @Religion, @Nationality, @NickName, @CivilStatus, @Sex, @HomeAddress, @HomeNo, @OfficeNo, @Occupation, @CitizenShips, @CollegeOffice, @Course, @YearLevel, @PicFilePath, NOW())
+      `);
+
+    res.json({
+      success: true,
+      message: `Patient record created successfully with PatientID=${model.PatientID}`
+    });
+
   } catch (err) {
-    console.error('Error fetching archived patients:', err);
-    res.status(500).json({ success: false, message: err.message });
+    console.error('AddPatient Exception:', err);
+    res.status(500).json({
+      success: false,
+      message: `AddPatient Exception: ${err.message}`
+    });
   }
 });
 
-// #endregion READ
+// ----------------------------------------------------
+// UPDATE PATIENT BY PATIENTID (STRING KEY)
+// ----------------------------------------------------
+router.put('/patient/:patientId', async (req, res) => {
+  const patientId = req.params.patientId;
+  const patientData = req.body;
 
-// ====================================================
-// #region UPDATE
-// ====================================================
-router.put('/:id', generic.edit("Patient", "PatientID"));
+  try {
+    const pool = await poolPromise;
+    
+    // Start a transaction to update both Patient and Users tables
+    await poolPromise.transaction(async (createRequest) => {
+      // 1. Update Patient table
+      const patientFields = { ...patientData };
+      delete patientFields.Email;
+      delete patientFields.PhoneNumber;
+      delete patientFields.FirstName;
+      delete patientFields.MiddleName;
+      delete patientFields.LastName;
+      delete patientFields.Role;
+      delete patientFields.FullName;
+      
+      const patientKeys = Object.keys(patientFields).filter(k => k !== 'PatientID');
+      
+      if (patientKeys.length > 0) {
+        const setClause = patientKeys.map((k, i) => `${k}=@param${i}`).join(',');
+        const request = createRequest();
+        patientKeys.forEach((k, i) => request.input(`param${i}`, patientFields[k]));
+        request.input('patientId', patientId);
+        
+        await request.query(`UPDATE Patient SET ${setClause} WHERE PatientID=@patientId`);
+      }
+      
+      // 2. Optionally update Users table (email, phone, names)
+      if (patientData.Email || patientData.PhoneNumber || patientData.FirstName || 
+          patientData.MiddleName || patientData.LastName) {
+        
+        // Get UserID first
+        const getUserRequest = createRequest();
+        getUserRequest.input('patientId', patientId);
+        const userIdResult = await getUserRequest.query(
+          `SELECT UserID FROM Patient WHERE PatientID=@patientId`
+        );
+        
+        if (userIdResult.recordset.length > 0 && userIdResult.recordset[0].UserID) {
+          const userId = userIdResult.recordset[0].UserID;
+          const userFields = [];
+          const userRequest = createRequest();
+          
+          if (patientData.Email) {
+            userFields.push('Email=@email');
+            userRequest.input('email', patientData.Email);
+          }
+          if (patientData.PhoneNumber) {
+            userFields.push('PhoneNumber=@phone');
+            userRequest.input('phone', patientData.PhoneNumber);
+          }
+          if (patientData.FirstName) {
+            userFields.push('FirstName=@firstName');
+            userRequest.input('firstName', patientData.FirstName);
+          }
+          if (patientData.MiddleName !== undefined) {
+            userFields.push('MiddleName=@middleName');
+            userRequest.input('middleName', patientData.MiddleName);
+          }
+          if (patientData.LastName) {
+            userFields.push('LastName=@lastName');
+            userRequest.input('lastName', patientData.LastName);
+          }
+          
+          if (userFields.length > 0) {
+            userRequest.input('userId', userId);
+            await userRequest.query(`UPDATE Users SET ${userFields.join(',')} WHERE UserID=@userId`);
+          }
+        }
+      }
+    });
+    
+    // Return updated patient data
+    const result = await pool.request()
+      .input('patientId', patientId)
+      .query(`
+        SELECT 
+          p.*,
+          u.FirstName,
+          u.MiddleName,
+          u.LastName,
+          u.Email,
+          u.PhoneNumber,
+          CONCAT(u.FirstName, ' ', COALESCE(CONCAT(u.MiddleName, ' '), ''), u.LastName) AS FullName
+        FROM Patient p
+        LEFT JOIN Users u ON p.UserID = u.UserID
+        WHERE p.PatientID = @patientId
+      `);
+    
+    res.json({ success: true, message: `Patient ${patientId} updated successfully`, patient: result.recordset[0] });
+  } catch (err) {
+    console.error("Error updating patient:", err);
+    res.status(500).json({ success: false, message: `UpdatePatient Exception: ${err.message}` });
+  }
+});
 
-// ✅ Archive patient (soft delete)
+// ----------------------------------------------------
+// DELETE PATIENT BY PATIENTID (STRING KEY)
+// ----------------------------------------------------
+router.delete('/patient/:patientId', async (req, res) => {
+  const patientId = req.params.patientId;
+  try {
+    const pool = await poolPromise;
+    await pool.request()
+      .input('patientId', patientId)
+      .query(`DELETE FROM Patient WHERE PatientID = @patientId`);
+    
+    res.json({ success: true, message: `Patient ${patientId} deleted successfully` });
+  } catch (err) {
+    console.error("Error deleting patient:", err);
+    res.status(500).json({ success: false, message: `DeletePatient Exception: ${err.message}` });
+  }
+});
+
+// ----------------------------------------------------
+// ARCHIVE PATIENT (SOFT DELETE)
+// ----------------------------------------------------
 router.put('/archive/:patientId', async (req, res) => {
   const patientId = req.params.patientId;
   try {
     const pool = await poolPromise;
     await pool.request()
       .input('patientId', patientId)
-      .query(`UPDATE Patient SET EndDate = NOW() WHERE PatientID = @patientId`);
+      .input('now', new Date())
+      .query(`UPDATE Patient SET EndDate = @now WHERE PatientID = @patientId`);
     
     res.json({ success: true, message: `Patient ${patientId} archived successfully` });
   } catch (err) {
-    console.error('Error archiving patient:', err);
-    res.status(500).json({ success: false, message: err.message });
+    console.error("Error archiving patient:", err);
+    res.status(500).json({ success: false, message: `ArchivePatient Exception: ${err.message}` });
   }
 });
 
-// ✅ Restore patient (unarchive)
+// ----------------------------------------------------
+// RESTORE PATIENT (UNARCHIVE)
+// ----------------------------------------------------
 router.put('/restore/:patientId', async (req, res) => {
   const patientId = req.params.patientId;
   try {
@@ -214,17 +369,15 @@ router.put('/restore/:patientId', async (req, res) => {
     
     res.json({ success: true, message: `Patient ${patientId} restored successfully` });
   } catch (err) {
-    console.error('Error restoring patient:', err);
-    res.status(500).json({ success: false, message: err.message });
+    console.error("Error restoring patient:", err);
+    res.status(500).json({ success: false, message: `RestorePatient Exception: ${err.message}` });
   }
 });
 
-// #endregion UPDATE
-
-// ====================================================
-// #region DELETE
-// ====================================================
-router.delete('/:id', generic.delete("Patient", "PatientID"));
-// #endregion DELETE
+// ----------------------------------------------------
+// LEGACY ROUTES (for backward compatibility)
+// ----------------------------------------------------
+router.put('/:id', generic.edit("Patient", "PatientID"));     // Update by numeric/string ID
+router.delete('/:id', generic.delete("Patient", "PatientID"));// Delete by numeric/string ID
 
 module.exports = router;
