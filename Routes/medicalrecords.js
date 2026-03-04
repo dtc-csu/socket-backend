@@ -7,9 +7,39 @@ router.get("/", async (req, res) => {
   try {
     const pool = await poolPromise;
     const result = await pool.request().query(`
-      SELECT TOP 1000 MedicalRecordsId, PatientID, ChiefComplaint, HistoryofPresentIllness, Constitutional, HEENT, Cardiovascular, Respiratory, Gastrointestinal, Genitourinary, Musculoskeletal, Skin, Psychiatric, EndocrineHematologic, AllergicImmunologic, DiagnosisAssessment, PlanManagement, PastMedicalandMedicationHistory, ObstetricandGynecologicHistory, FamilyHistory, CreationDate, EndDate
+      SELECT *
       FROM MedicalRecords
       ORDER BY CreationDate DESC
+      LIMIT 1000
+    `);
+    res.json(result.recordset);
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ✅ Get all records for grid view with patient info
+router.get("/grid", async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().query(`
+      SELECT
+        mr.MedicalRecordsId AS MedicalRecordID,
+        mr.CreationDate AS VisitDate,
+        mr.ChiefComplaint,
+        mr.DiagnosisAssessment AS Diagnosis,
+        mr.Constitutional,
+        mr.HEENT,
+        mr.Cardiovascular,
+        mr.Respiratory,
+        mr.Gastrointestinal,
+        p.PatientID,
+        CONCAT(u.FirstName, ' ', COALESCE(u.MiddleName, ''), ' ', u.LastName) AS PatientFullName
+      FROM MedicalRecords mr
+      INNER JOIN Patient p ON mr.PatientID = p.PatientID
+      INNER JOIN Users u ON p.UserID = u.UserID
+      ORDER BY mr.CreationDate DESC
+      LIMIT 1000
     `);
     res.json(result.recordset);
   } catch (err) {
@@ -27,10 +57,11 @@ router.get("/patient/:patientId", async (req, res) => {
       .request()
       .input("patientId", req.params.patientId)
       .query(`
-        SELECT TOP 1000 MedicalRecordsId, PatientID, ChiefComplaint, HistoryofPresentIllness, Constitutional, HEENT, Cardiovascular, Respiratory, Gastrointestinal, Genitourinary, Musculoskeletal, Skin, Psychiatric, EndocrineHematologic, AllergicImmunologic, DiagnosisAssessment, PlanManagement, PastMedicalandMedicationHistory, ObstetricandGynecologicHistory, FamilyHistory, CreationDate, EndDate
+        SELECT *
         FROM MedicalRecords
         WHERE PatientID = @patientId
         ORDER BY CreationDate DESC
+        LIMIT 1000
       `);
 
     res.json(result.recordset);
@@ -49,10 +80,11 @@ router.get('/summary/patient/:patientId', async (req, res) => {
       .request()
       .input('patientId', req.params.patientId)
       .query(`
-        SELECT TOP 100 MedicalRecordsId AS MedicalRecordID, PatientID, ChiefComplaint, DiagnosisAssessment, PlanManagement, CreationDate
+        SELECT MedicalRecordsId AS MedicalRecordID, PatientID, ChiefComplaint, DiagnosisAssessment, PlanManagement, CreationDate
         FROM MedicalRecords
         WHERE PatientID = @patientId
         ORDER BY CreationDate DESC
+        LIMIT 100
       `);
 
     res.json(result.recordset);
