@@ -9,10 +9,9 @@ router.get('/maxslot', async (req, res) => {
   try {
     const pool = await poolPromise;
     const result = await pool.request().query(`
-      SELECT SettingValue
+      SELECT TOP (1) SettingValue
       FROM SystemSettings
       WHERE SettingName = 'DefaultMaxSlot'
-      LIMIT 1
     `);
 
     if (

@@ -1,11 +1,11 @@
-// routes/patient.js
+// routes/patients.js
 const express = require('express');
 const router = express.Router();
 const poolPromise = require('../db');
 const generic = require('../Controllers/genericController')(poolPromise);
 
 // ----------------------------------------------------
-// GET ALL PATIENTS WITH ENRICHED USER DATA (ACTIVE ONLY)
+// GET ALL PATIENTS WITH ENRICHED USER DATA
 // ----------------------------------------------------
 router.get('/', async (req, res) => {
   try {
@@ -22,40 +22,11 @@ router.get('/', async (req, res) => {
         CONCAT(u.FirstName, ' ', COALESCE(CONCAT(u.MiddleName, ' '), ''), u.LastName) AS FullName
       FROM Patient p
       LEFT JOIN Users u ON p.UserID = u.UserID
-      WHERE p.EndDate IS NULL OR p.EndDate > NOW()
       ORDER BY p.PatientID
     `);
     res.json(result.recordset);
   } catch (err) {
     console.error("Error fetching all patients:", err);
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-// ----------------------------------------------------
-// GET ARCHIVED PATIENTS (SOFT DELETED)
-// ----------------------------------------------------
-router.get('/archived/list', async (req, res) => {
-  try {
-    const pool = await poolPromise;
-    const result = await pool.request().query(`
-      SELECT 
-        p.*,
-        u.FirstName,
-        u.MiddleName,
-        u.LastName,
-        u.Email,
-        u.PhoneNumber,
-        u.Role,
-        CONCAT(u.FirstName, ' ', COALESCE(CONCAT(u.MiddleName, ' '), ''), u.LastName) AS FullName
-      FROM Patient p
-      LEFT JOIN Users u ON p.UserID = u.UserID
-      WHERE p.EndDate IS NOT NULL AND p.EndDate <= NOW()
-      ORDER BY p.EndDate DESC
-    `);
-    res.json(result.recordset);
-  } catch (err) {
-    console.error("Error fetching archived patients:", err);
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -200,7 +171,7 @@ router.post('/', async (req, res) => {
         INSERT INTO Patient 
         (PatientID, UserID, BirthDate, Age, Religion, Nationality, NickName, CivilStatus, Sex, HomeAddress, HomeNo, OfficeNo, Occupation, CitizenShips, CollegeOffice, Course, YearLevel, PicFilePath, CreationDate)
         VALUES 
-        (@PatientID, @UserID, @BirthDate, @Age, @Religion, @Nationality, @NickName, @CivilStatus, @Sex, @HomeAddress, @HomeNo, @OfficeNo, @Occupation, @CitizenShips, @CollegeOffice, @Course, @YearLevel, @PicFilePath, NOW())
+        (@PatientID, @UserID, @BirthDate, @Age, @Religion, @Nationality, @NickName, @CivilStatus, @Sex, @HomeAddress, @HomeNo, @OfficeNo, @Occupation, @CitizenShips, @CollegeOffice, @Course, @YearLevel, @PicFilePath, GETDATE())
       `);
 
     res.json({
@@ -334,43 +305,6 @@ router.delete('/patient/:patientId', async (req, res) => {
   } catch (err) {
     console.error("Error deleting patient:", err);
     res.status(500).json({ success: false, message: `DeletePatient Exception: ${err.message}` });
-  }
-});
-
-// ----------------------------------------------------
-// ARCHIVE PATIENT (SOFT DELETE)
-// ----------------------------------------------------
-router.put('/archive/:patientId', async (req, res) => {
-  const patientId = req.params.patientId;
-  try {
-    const pool = await poolPromise;
-    await pool.request()
-      .input('patientId', patientId)
-      .input('now', new Date())
-      .query(`UPDATE Patient SET EndDate = @now WHERE PatientID = @patientId`);
-    
-    res.json({ success: true, message: `Patient ${patientId} archived successfully` });
-  } catch (err) {
-    console.error("Error archiving patient:", err);
-    res.status(500).json({ success: false, message: `ArchivePatient Exception: ${err.message}` });
-  }
-});
-
-// ----------------------------------------------------
-// RESTORE PATIENT (UNARCHIVE)
-// ----------------------------------------------------
-router.put('/restore/:patientId', async (req, res) => {
-  const patientId = req.params.patientId;
-  try {
-    const pool = await poolPromise;
-    await pool.request()
-      .input('patientId', patientId)
-      .query(`UPDATE Patient SET EndDate = NULL WHERE PatientID = @patientId`);
-    
-    res.json({ success: true, message: `Patient ${patientId} restored successfully` });
-  } catch (err) {
-    console.error("Error restoring patient:", err);
-    res.status(500).json({ success: false, message: `RestorePatient Exception: ${err.message}` });
   }
 });
 
