@@ -4,6 +4,21 @@ const crud = require("../Controllers/genericController");
 const poolPromise = require("../db");
 const controller = crud(poolPromise);
 
+// GET all family info
+router.get("/", async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().query(`
+      SELECT *
+      FROM FamilyInfo
+      ORDER BY CreationDate DESC
+    `);
+    res.json(result.recordset);
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // GET family info by UserID (find PatientID first)
 router.get("/user/:userId", async (req, res) => {
   try {

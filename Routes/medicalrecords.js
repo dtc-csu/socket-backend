@@ -2,33 +2,34 @@ const express = require("express");
 const router = express.Router();
 const poolPromise = require("../db");
 
+// ✅ Get all records
+router.get("/", async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().query(`
+      SELECT TOP 1000 MedicalRecordsId, PatientID, ChiefComplaint, HistoryofPresentIllness, Constitutional, HEENT, Cardiovascular, Respiratory, Gastrointestinal, Genitourinary, Musculoskeletal, Skin, Psychiatric, EndocrineHematologic, AllergicImmunologic, DiagnosisAssessment, PlanManagement, PastMedicalandMedicationHistory, ObstetricandGynecologicHistory, FamilyHistory, CreationDate, EndDate
+      FROM MedicalRecords
+      ORDER BY CreationDate DESC
+    `);
+    res.json(result.recordset);
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // ✅ Get records by patient
 router.get("/patient/:patientId", async (req, res) => {
   try {
     const pool = await poolPromise;
 
-    // First, get PatientIDNoAuto from Patient table using UserID
-    const patientResult = await pool
-      .request()
-      .input("patientId", req.params.patientId)
-      .query("SELECT PatientIDNoAuto FROM Patient WHERE PatientID = @patientId");
-
-    if (patientResult.recordset.length === 0) {
-      return res.status(404).json({ success: false, message: "Patient not found" });
-    }
-
-    const patientIdNoAuto = patientResult.recordset[0].PatientIDNoAuto;
-
-    // Then, get medical records using PatientIDNoAuto
+    // Get medical records using PatientID directly
     const result = await pool
       .request()
-      .input("patientIdNoAuto", patientIdNoAuto)
+      .input("patientId", req.params.patientId)
       .query(`
-        SELECT MedicalRecordsId, PatientIDNoAuto, ChiefComplaint, HistoryofPresentIllness, Constitutional, HEENT, Cardiovascular, Respiratory, Gastrointestinal, Genitourinary, Musculoskeletal, Skin, Psychiatric, EndocrineHematologic, AllergicImmunologic, DiagnosisAssessment, PlanManagement, PastMedicalandMedicationHistory, ObstetricandGynecologicHistory, FamilyHistory, CreationDate, EndDate
+        SELECT TOP 1000 MedicalRecordsId, PatientID, ChiefComplaint, HistoryofPresentIllness, Constitutional, HEENT, Cardiovascular, Respiratory, Gastrointestinal, Genitourinary, Musculoskeletal, Skin, Psychiatric, EndocrineHematologic, AllergicImmunologic, DiagnosisAssessment, PlanManagement, PastMedicalandMedicationHistory, ObstetricandGynecologicHistory, FamilyHistory, CreationDate, EndDate
         FROM MedicalRecords
-        LIMIT 1000
-        FROM MedicalRecords
-        WHERE PatientIDNoAuto = @patientIdNoAuto
+        WHERE PatientID = @patientId
         ORDER BY CreationDate DESC
       `);
 
@@ -43,28 +44,14 @@ router.get('/summary/patient/:patientId', async (req, res) => {
   try {
     const pool = await poolPromise;
 
-    // Get PatientIDNoAuto first
-    const patientResult = await pool
-      .request()
-      .input('patientId', req.params.patientId)
-      .query('SELECT PatientIDNoAuto FROM Patient WHERE PatientID = @patientId');
-
-    if (patientResult.recordset.length === 0) {
-      return res.status(404).json({ success: false, message: 'Patient not found' });
-    }
-
-    const patientIdNoAuto = patientResult.recordset[0].PatientIDNoAuto;
-
     // Select only textual/NVARCHAR fields and CreationDate for preview
     const result = await pool
       .request()
-      .input('patientIdNoAuto', patientIdNoAuto)
+      .input('patientId', req.params.patientId)
       .query(`
-        SELECT MedicalRecordsId AS MedicalRecordID, PatientIDNoAuto, ChiefComplaint, DiagnosisAssessment, PlanManagement, CreationDate
+        SELECT TOP 100 MedicalRecordsId AS MedicalRecordID, PatientID, ChiefComplaint, DiagnosisAssessment, PlanManagement, CreationDate
         FROM MedicalRecords
-        LIMIT 100
-        FROM MedicalRecords
-        WHERE PatientIDNoAuto = @patientIdNoAuto
+        WHERE PatientID = @patientId
         ORDER BY CreationDate DESC
       `);
 
@@ -81,7 +68,7 @@ router.post("/", async (req, res) => {
     const r = req.body;
 
     await pool.request()
-      .input("PatientIDNoAuto", r.PatientIDNoAuto)
+      .input("PatientID", r.PatientID)
       .input("ChiefComplaint", r.ChiefComplaint)
       .input("HistoryofPresentIllness", r.HistoryofPresentIllness)
       .input("Constitutional", r.Constitutional)
@@ -102,9 +89,9 @@ router.post("/", async (req, res) => {
       .input("FamilyHistory", r.FamilyHistory)
       .query(`
         INSERT INTO MedicalRecords
-          (PatientIDNoAuto, ChiefComplaint, HistoryofPresentIllness, Constitutional, HEENT, Cardiovascular, Respiratory, Gastrointestinal, Genitourinary, Musculoskeletal, Skin, Psychiatric, EndocrineHematologic, AllergicImmunologic, DiagnosisAssessment, PlanManagement, PastMedicalandMedicationHistory, ObstetricandGynecologicHistory, FamilyHistory)
+          (PatientID, ChiefComplaint, HistoryofPresentIllness, Constitutional, HEENT, Cardiovascular, Respiratory, Gastrointestinal, Genitourinary, Musculoskeletal, Skin, Psychiatric, EndocrineHematologic, AllergicImmunologic, DiagnosisAssessment, PlanManagement, PastMedicalandMedicationHistory, ObstetricandGynecologicHistory, FamilyHistory)
         VALUES
-          (@PatientIDNoAuto, @ChiefComplaint, @HistoryofPresentIllness, @Constitutional, @HEENT, @Cardiovascular, @Respiratory, @Gastrointestinal, @Genitourinary, @Musculoskeletal, @Skin, @Psychiatric, @EndocrineHematologic, @AllergicImmunologic, @DiagnosisAssessment, @PlanManagement, @PastMedicalandMedicationHistory, @ObstetricandGynecologicHistory, @FamilyHistory)
+          (@PatientID, @ChiefComplaint, @HistoryofPresentIllness, @Constitutional, @HEENT, @Cardiovascular, @Respiratory, @Gastrointestinal, @Genitourinary, @Musculoskeletal, @Skin, @Psychiatric, @EndocrineHematologic, @AllergicImmunologic, @DiagnosisAssessment, @PlanManagement, @PastMedicalandMedicationHistory, @ObstetricandGynecologicHistory, @FamilyHistory)
       `);
 
     res.json({ success: true });

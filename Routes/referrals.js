@@ -19,7 +19,8 @@ router.get('/', async (req, res) => {
         r.Reasons,
         r.CreationDate,
         r.DoctorID,
-        CONCAT(u.FirstName, ' ', COALESCE(CONCAT(u.MiddleName, ' '), ''), u.LastName) AS DoctorName
+        CONCAT(u.FirstName, ' ', COALESCE(CONCAT(u.MiddleName, ' '), ''), u.LastName) AS DoctorName,
+        d.LicenseNumber
       FROM Referral r
       LEFT JOIN Doctors d ON r.DoctorID = d.DoctorID
       LEFT JOIN Users u ON d.UserID = u.UserID
@@ -43,12 +44,31 @@ router.get('/patient/:patientId', async (req, res) => {
       .input('patientId', patientId)
       .query(`
         SELECT
-          r.*,
-          CONCAT(u.FirstName, ' ', COALESCE(CONCAT(u.MiddleName, ' '), ''), u.LastName) AS DoctorName
+          r.ReferralID,
+          r.PatientID,
+          r.ReferralDate,
+          r.ChiefComplaint,
+          r.BriefHistoryandPhysicalExamination,
+          r.Impression,
+          r.Reasons,
+          r.CreationDate,
+          r.DoctorID,
+          CONCAT(pu.FirstName, ' ', COALESCE(CONCAT(pu.MiddleName, ' '), ''), pu.LastName) AS PatientName,
+          pu.UserID AS PatientUserID,
+          p.PatientID,
+          p.Gender,
+          p.DOB,
+          p.Address,
+          p.ContactNumber,
+          CONCAT(du.FirstName, ' ', COALESCE(CONCAT(du.MiddleName, ' '), ''), du.LastName) AS DoctorName,
+          du.UserID AS DoctorUserID
         FROM Referral r
+        LEFT JOIN Patient p ON r.PatientID = p.PatientID
+        LEFT JOIN Users pu ON p.UserID = pu.UserID
         LEFT JOIN Doctors d ON r.DoctorID = d.DoctorID
-        LEFT JOIN Users u ON d.UserID = u.UserID
+        LEFT JOIN Users du ON d.UserID = du.UserID
         WHERE r.PatientID = @patientId
+           OR p.UserID = @patientId
         ORDER BY r.CreationDate DESC
       `);
     res.json(result.recordset);
