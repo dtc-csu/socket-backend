@@ -12,7 +12,7 @@ router.get('/', async (req, res) => {
       SELECT
         r.ReferralID,
         r.PatientID,
-        r.FollowUpDate,
+        r.ReferralDate,
         r.ChiefComplaint,
         r.BriefHistoryandPhysicalExamination,
         r.Impression,
@@ -116,6 +116,7 @@ router.get('/:referralId', async (req, res) => {
 router.post('/', async (req, res) => {
   const {
     patientId,
+    referralDate,
     followUpDate,
     chiefComplaint,
     briefHistoryandPhysicalExamination,
@@ -124,10 +125,12 @@ router.post('/', async (req, res) => {
     doctorId
   } = req.body;
 
-  if (!patientId || !followUpDate) {
+  const resolvedReferralDate = referralDate || followUpDate;
+
+  if (!patientId || !resolvedReferralDate) {
     return res.status(400).json({ 
       success: false, 
-      message: "patientId and followUpDate are required" 
+      message: "patientId and referralDate are required" 
     });
   }
 
@@ -135,7 +138,7 @@ router.post('/', async (req, res) => {
     const pool = await poolPromise;
     const result = await pool.request()
       .input("patientId", patientId)
-      .input("followUpDate", new Date(followUpDate))
+      .input("referralDate", new Date(resolvedReferralDate))
       .input("chiefComplaint", chiefComplaint || null)
       .input("briefHistoryandPhysicalExamination", briefHistoryandPhysicalExamination || null)
       .input("impression", impression || null)
@@ -144,7 +147,7 @@ router.post('/', async (req, res) => {
       .query(`
         INSERT INTO Referral (
           PatientID, 
-          FollowUpDate, 
+          ReferralDate, 
           ChiefComplaint, 
           BriefHistoryandPhysicalExamination, 
           Impression, 
@@ -154,7 +157,7 @@ router.post('/', async (req, res) => {
         )
         VALUES (
           @patientId, 
-          @followUpDate, 
+          @referralDate, 
           @chiefComplaint, 
           @briefHistoryandPhysicalExamination, 
           @impression, 
@@ -183,6 +186,7 @@ router.post('/', async (req, res) => {
 router.put('/:referralId', async (req, res) => {
   const referralId = req.params.referralId;
   const {
+    referralDate,
     followUpDate,
     chiefComplaint,
     briefHistoryandPhysicalExamination,
@@ -191,11 +195,13 @@ router.put('/:referralId', async (req, res) => {
     doctorId
   } = req.body;
 
+  const resolvedReferralDate = referralDate || followUpDate;
+
   try {
     const pool = await poolPromise;
     await pool.request()
       .input("referralId", referralId)
-      .input("followUpDate", followUpDate ? new Date(followUpDate) : null)
+      .input("referralDate", resolvedReferralDate ? new Date(resolvedReferralDate) : null)
       .input("chiefComplaint", chiefComplaint || null)
       .input("briefHistoryandPhysicalExamination", briefHistoryandPhysicalExamination || null)
       .input("impression", impression || null)
@@ -204,7 +210,7 @@ router.put('/:referralId', async (req, res) => {
       .query(`
         UPDATE Referral
         SET 
-          FollowUpDate = COALESCE(@followUpDate, FollowUpDate),
+          ReferralDate = COALESCE(@referralDate, ReferralDate),
           ChiefComplaint = @chiefComplaint,
           BriefHistoryandPhysicalExamination = @briefHistoryandPhysicalExamination,
           Impression = @impression,
