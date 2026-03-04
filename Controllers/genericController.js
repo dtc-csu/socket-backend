@@ -1,4 +1,6 @@
 module.exports = (poolPromise) => {
+  const formatError = (err) => err?.message || "Unexpected server error";
+
   return {
     // ---------------------- GET ALL ----------------------
     getAll: (tableName, pkName = "id") => async (req, res) => {
@@ -7,7 +9,7 @@ module.exports = (poolPromise) => {
         const result = await pool.request().query(`SELECT * FROM ${tableName} ORDER BY ${pkName}`);
         res.json(result.recordset);
       } catch (err) {
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ success: false, message: `GetAll${tableName} Exception: ${formatError(err)}` });
       }
     },
 
@@ -21,11 +23,11 @@ module.exports = (poolPromise) => {
           .query(`SELECT * FROM ${tableName} WHERE ${pkName}=@idParam`);
         
         if (result.recordset.length === 0) {
-          return res.status(404).json({ error: "Record not found" });
+          return res.status(404).json({ success: false, message: `${tableName} record not found` });
         }
         res.json(result.recordset[0]);
       } catch (err) {
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ success: false, message: `Get${tableName}ById Exception: ${formatError(err)}` });
       }
     },
 
@@ -62,14 +64,19 @@ module.exports = (poolPromise) => {
 
       if (!newRecord) {
         return res.status(500).json({ 
-          error: `Failed to retrieve newly created record. Result structure: ${JSON.stringify(result).substring(0, 200)}` 
+          success: false,
+          message: `Add${tableName} Exception: Failed to retrieve newly created record` 
         });
       }
 
-      res.json(newRecord);
+      res.json({
+        success: true,
+        message: `${tableName} saved successfully`,
+        data: newRecord
+      });
     } catch (err) {
       console.error(`[${tableName} ADD ERROR]`, err.message, err.stack);
-      res.status(500).json({ error: err.message });
+      res.status(500).json({ success: false, message: `Add${tableName} Exception: ${formatError(err)}` });
     }
   },
 
@@ -90,9 +97,17 @@ module.exports = (poolPromise) => {
         const query = `UPDATE ${tableName} SET ${setQuery} WHERE ${pkName}=@idParam; SELECT * FROM ${tableName} WHERE ${pkName}=@idParam`;
         const result = await request.query(query);
 
-        res.json(result.recordset[0]);
+        if (!result.recordset || result.recordset.length === 0) {
+          return res.status(404).json({ success: false, message: `${tableName} record not found` });
+        }
+
+        res.json({
+          success: true,
+          message: `${tableName} updated successfully`,
+          data: result.recordset[0]
+        });
       } catch (err) {
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ success: false, message: `Update${tableName} Exception: ${formatError(err)}` });
       }
     },
 
@@ -102,9 +117,9 @@ module.exports = (poolPromise) => {
         const pool = await poolPromise;
         const id = req.params.id;
         await pool.request().input("idParam", id).query(`DELETE FROM ${tableName} WHERE ${pkName}=@idParam`);
-        res.json({ message: `Deleted from ${tableName}` });
+        res.json({ success: true, message: `${tableName} deleted successfully` });
       } catch (err) {
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ success: false, message: `Delete${tableName} Exception: ${formatError(err)}` });
       }
     },
 
@@ -131,7 +146,7 @@ module.exports = (poolPromise) => {
         const result = await request.query(query);
         res.json(result.recordset);
       } catch (err) {
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ success: false, message: `Search${tableName} Exception: ${formatError(err)}` });
       }
     },
 
@@ -142,7 +157,7 @@ module.exports = (poolPromise) => {
         const records = req.body.records || req.body; // Accept array of records
         
         if (!Array.isArray(records) || records.length === 0) {
-          return res.status(400).json({ error: "Expected array of records" });
+          return res.status(400).json({ success: false, message: "Expected array of records" });
         }
 
         const insertedIds = [];
@@ -169,11 +184,12 @@ module.exports = (poolPromise) => {
         });
 
         res.json({ 
-          message: `${records.length} records inserted into ${tableName}`,
+          success: true,
+          message: `${records.length} ${tableName} records saved successfully`,
           insertedIds 
         });
       } catch (err) {
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ success: false, message: `BulkAdd${tableName} Exception: ${formatError(err)}` });
       }
     },
 
@@ -184,7 +200,7 @@ module.exports = (poolPromise) => {
         const ids = req.body.ids; // Expect { ids: [1, 2, 3, ...] }
         
         if (!Array.isArray(ids) || ids.length === 0) {
-          return res.status(400).json({ error: "Expected array of IDs" });
+          return res.status(400).json({ success: false, message: "Expected array of IDs" });
         }
 
         const request = pool.request();
@@ -197,11 +213,12 @@ module.exports = (poolPromise) => {
         await request.query(query);
         
         res.json({ 
+          success: true,
           message: `Deleted ${ids.length} records from ${tableName}`,
           deletedIds: ids 
         });
       } catch (err) {
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ success: false, message: `BulkDelete${tableName} Exception: ${formatError(err)}` });
       }
     },
 
@@ -226,7 +243,7 @@ module.exports = (poolPromise) => {
         const result = await request.query(query);
         res.json({ total: result.recordset[0].total });
       } catch (err) {
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ success: false, message: `Count${tableName} Exception: ${formatError(err)}` });
       }
     },
 
@@ -267,7 +284,7 @@ module.exports = (poolPromise) => {
           }
         });
       } catch (err) {
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ success: false, message: `Paginate${tableName} Exception: ${formatError(err)}` });
       }
     },
   };
