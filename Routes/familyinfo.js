@@ -62,7 +62,36 @@ router.get("/patient/:patientId", async (req, res) => {
     });
   }
 });
+// COMPAT: C# FamilyInfoFacade.GetByPatientIDAsync calls GET FamilyInfos/by-patient/{patientId}
+// and expects a plain FamilyInfo object (or 404 with empty body).
+router.get("/by-patient/:patientId", async (req, res) => {
+  const patientId = req.params.patientId;
 
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input("patientId", patientId)
+      .query(`
+        SELECT TOP 1 *
+        FROM FamilyInfo
+        WHERE PatientID = @patientId
+        ORDER BY CreationDate DESC
+      `);
+
+    if (result.recordset.length === 0) {
+      // let C# interpret as null
+      return res.status(404).send();
+    }
+
+    // plain object for FamilyInfoFacade.GetByPatientIDAsync
+    res.json(result.recordset[0]);
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: `GetFamilyInfoByPatientID Exception: ${err.message}`
+    });
+  }
+});
 // ============================================================
 // READ - GET FAMILY INFO BY ID
 // ============================================================
