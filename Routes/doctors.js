@@ -5,7 +5,55 @@ const generic = require('../Controllers/genericController')(poolPromise);
 
 // CRUD for doctors table
 router.get('/', generic.getAll("Doctors", "DoctorID"));
-router.post('/', generic.add("Doctors", "DoctorID"));
+
+// Custom ADD to avoid invalid date conversions on CreationDate
+router.post('/', async (req, res) => {
+  try {
+    const { UserID, LicenseNumber, Specialty, Bio } = req.body;
+
+    if (!UserID || !LicenseNumber) {
+      return res.status(400).json({
+        success: false,
+        message: 'AddDoctors failed: UserID and LicenseNumber are required',
+      });
+    }
+
+    const pool = await poolPromise;
+    const request = pool.request()
+      .input('UserID', UserID)
+      .input('LicenseNumber', LicenseNumber)
+      .input('Specialty', Specialty ?? null)
+      .input('Bio', Bio ?? null);
+
+    const result = await request.query(`
+      INSERT INTO Doctors (UserID, LicenseNumber, Specialty, Bio, CreationDate)
+      VALUES (@UserID, @LicenseNumber, @Specialty, @Bio, GETDATE());
+      SELECT * FROM Doctors WHERE DoctorID = SCOPE_IDENTITY();
+    `);
+
+    const newDoctor = result.recordset && result.recordset[0] ? result.recordset[0] : null;
+
+    if (!newDoctor) {
+      return res.status(500).json({
+        success: false,
+        message: 'AddDoctors Exception: Failed to retrieve newly created record',
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Doctors saved successfully',
+      data: newDoctor,
+    });
+  } catch (err) {
+    console.error('[Doctors ADD ERROR]', err.message, err.stack);
+    res.status(500).json({
+      success: false,
+      message: `AddDoctors Exception: ${err.message}`,
+    });
+  }
+});
+
 router.put('/:id', generic.edit("Doctors", "DoctorID"));
 router.delete('/:id', generic.delete("Doctors", "DoctorID"));
 

@@ -34,6 +34,7 @@ router.get('/', async (req, res) => {
 // ----------------------------------------------------
 // GET PATIENT BY PATIENTID (STRING KEY)
 // ----------------------------------------------------
+// GET PATIENT BY PATIENTID (STRING KEY)
 router.get('/patient/:patientId', async (req, res) => {
   const patientId = req.params.patientId;
   try {
@@ -58,8 +59,9 @@ router.get('/patient/:patientId', async (req, res) => {
     if (result.recordset.length === 0) {
       return res.status(404).json({ success: false, message: "Patient not found" });
     }
-    
-    res.json({ success: true, data: result.recordset[0] });
+
+    // IMPORTANT: return plain patient object for C#
+    res.json(result.recordset[0]);
   } catch (err) {
     console.error("Error fetching patient:", err);
     res.status(500).json({ success: false, message: err.message });
