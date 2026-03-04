@@ -12,11 +12,8 @@ router.get('/', async (req, res) => {
         AppointmentID,
         PatientID,
         FollowUpDate,
-        ChiefComplaint,
-        BriefHistoryandPhysicalExamination,
-        Impression,
-        Reasons,
-        CreationDate
+        Notes,
+        CreatedAt
       FROM FollowUps
       ORDER BY FollowUpDate DESC
     `);
@@ -73,29 +70,23 @@ router.post('/', async (req, res) => {
     appointmentId,
     patientId,
     followUpDate,
-    chiefComplaint,
-    briefHistoryandPhysicalExamination,
-    impression,
-    reasons
+    notes
   } = req.body;
 
-  if (!appointmentId || !patientId || !followUpDate) {
-    return res.status(400).json({ success: false, message: "appointmentId, patientId, and followUpDate are required" });
+  if (!patientId || !followUpDate) {
+    return res.status(400).json({ success: false, message: "patientId and followUpDate are required" });
   }
 
   try {
     const pool = await poolPromise;
     const result = await pool.request()
-      .input("appointmentId", appointmentId)
+      .input("appointmentId", appointmentId || null)
       .input("patientId", patientId)
       .input("followUpDate", new Date(followUpDate))
-      .input("chiefComplaint", chiefComplaint || null)
-      .input("briefHistoryandPhysicalExamination", briefHistoryandPhysicalExamination || null)
-      .input("impression", impression || null)
-      .input("reasons", reasons || null)
+      .input("notes", notes || null)
       .query(`
-        INSERT INTO FollowUps (AppointmentID, PatientID, FollowUpDate, ChiefComplaint, BriefHistoryandPhysicalExamination, Impression, Reasons, CreationDate)
-        VALUES (@appointmentId, @patientId, @followUpDate, @chiefComplaint, @briefHistoryandPhysicalExamination, @impression, @reasons, GETDATE());
+        INSERT INTO FollowUps (AppointmentID, PatientID, FollowUpDate, Notes, CreatedAt)
+        VALUES (@appointmentId, @patientId, @followUpDate, @notes, GETDATE());
         SELECT SCOPE_IDENTITY() AS FollowUpID;
       `);
 
@@ -111,26 +102,20 @@ router.post('/', async (req, res) => {
 router.put('/:followUpId', async (req, res) => {
   const followUpId = req.params.followUpId;
   const {
-    chiefComplaint,
-    briefHistoryandPhysicalExamination,
-    impression,
-    reasons
+    followUpDate,
+    notes
   } = req.body;
 
   try {
     const pool = await poolPromise;
     const result = await pool.request()
       .input("followUpId", followUpId)
-      .input("chiefComplaint", chiefComplaint || null)
-      .input("briefHistoryandPhysicalExamination", briefHistoryandPhysicalExamination || null)
-      .input("impression", impression || null)
-      .input("reasons", reasons || null)
+      .input("followUpDate", followUpDate ? new Date(followUpDate) : null)
+      .input("notes", notes || null)
       .query(`
         UPDATE FollowUps
-        SET ChiefComplaint = @chiefComplaint,
-            BriefHistoryandPhysicalExamination = @briefHistoryandPhysicalExamination,
-            Impression = @impression,
-            Reasons = @reasons
+        SET FollowUpDate = COALESCE(@followUpDate, FollowUpDate),
+            Notes = @notes
         WHERE FollowUpID = @followUpId
       `);
 
