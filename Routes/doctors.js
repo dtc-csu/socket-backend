@@ -4,7 +4,35 @@ const poolPromise = require('../db');
 const generic = require('../Controllers/genericController')(poolPromise);
 
 // CRUD for doctors table
-router.get('/', generic.getAll("Doctors", "DoctorID"));
+// Get all doctors with joined user info and concatenated name
+router.get('/', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().query(`
+      SELECT 
+        d.DoctorID,
+        d.UserID,
+        d.LicenseNumber,
+        d.Specialty,
+        d.Bio,
+        d.CreationDate,
+        u.FirstName,
+        u.MiddleName,
+        u.LastName,
+        LTRIM(RTRIM(CONCAT(u.FirstName, ' ', ISNULL(u.MiddleName + ' ', ''), u.LastName))) AS FullName
+      FROM Doctors d
+      INNER JOIN Users u ON d.UserID = u.UserID
+      ORDER BY d.DoctorID
+    `);
+
+    res.json(result.recordset);
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: `GetAllDoctors Exception: ${err.message}`,
+    });
+  }
+});
 
 // Custom ADD to avoid invalid date conversions on CreationDate
 router.post('/', async (req, res) => {
