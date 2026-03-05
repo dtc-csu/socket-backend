@@ -24,6 +24,36 @@ router.get('/', async (req, res) => {
   }
 });
 
+// ---------------------- GRID: dental records with patient name/college ----------------------
+// Equivalent to C# GetAllGrid
+router.get('/grid', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().query(`
+      SELECT
+        dr.DentalRecordID,
+        dr.PatientID,
+        dr.CreationDate,
+        dr.DentalService,
+        dr.Medication,
+
+        p.CollegeOffice,
+        u.FirstName + ' ' + u.MiddleName + ' ' + u.LastName AS PatientFullName
+
+      FROM DentalRecord dr
+      LEFT JOIN Patient p ON dr.PatientID = p.PatientID
+      LEFT JOIN Users u ON p.UserID = u.UserID
+
+      ORDER BY dr.CreationDate DESC
+    `);
+
+    return res.json({ success: true, data: result.recordset });
+  } catch (err) {
+    console.error('Error fetching dental record grid:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // ---------------------- GET dental records by patient ID ----------------------
 router.get('/patient/:patientId', async (req, res) => {
   const patientId = req.params.patientId;
@@ -41,6 +71,60 @@ router.get('/patient/:patientId', async (req, res) => {
   } catch (err) {
     console.error("Error fetching patient dental records:", err);
     res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ---------------------- REPORT: latest dental record with patient/tooth info ----------------------
+// Rough equivalent of C# GetDentalRecordReport(string patientId)
+router.get('/report/:patientId', async (req, res) => {
+  const patientId = req.params.patientId;
+
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('patientId', patientId)
+      .query(`
+        SELECT TOP 1
+          dr.DentalRecordID,
+          dr.PatientID,
+          dr.DentalService,
+          dr.Medication,
+          dr.CreationDate,
+
+          u.FirstName + ' ' + u.MiddleName + ' ' + u.LastName AS PatientFullName,
+          p.HomeAddress AS PatientAddress,
+          p.Sex,
+          p.Age,
+          p.Course,
+          p.YearLevel,
+          p.CollegeOffice AS College,
+
+          ISNULL(dt.DentalToothID, 0) AS DentalToothID,
+          dt.ToothNumber,
+          dt.ProcedureDone,
+          dt.CreationDate AS ToothCreationDate
+
+        FROM DentalRecord dr
+        LEFT JOIN Patient p ON dr.PatientID = p.PatientID
+        LEFT JOIN Users u ON p.UserID = u.UserID
+        OUTER APPLY (
+          SELECT TOP 1 *
+          FROM DentalTooth dt
+          WHERE dt.DentalRecordID = dr.DentalRecordID
+          ORDER BY dt.CreationDate DESC
+        ) dt
+        WHERE dr.PatientID = @patientId
+        ORDER BY dr.CreationDate DESC
+      `);
+
+    if (!result.recordset || result.recordset.length === 0) {
+      return res.json(null); // or 404 depending on client expectations
+    }
+
+    return res.json(result.recordset[0]);
+  } catch (err) {
+    console.error('Error fetching dental record report:', err);
+    return res.status(500).json({ success: false, message: err.message });
   }
 });
 
