@@ -5,7 +5,8 @@ const poolPromise = require("../db");
 const controller = crud(poolPromise);
 
 // -----------------------------
-// GET all prescriptions (for doctors)
+// GET grid of prescriptions (for listing)
+// Equivalent to C# GetAllGrid
 // -----------------------------
 router.get("/", async (req, res) => {
   try {
@@ -13,54 +14,81 @@ router.get("/", async (req, res) => {
 
     const result = await pool.request().query(`
       SELECT
-        dm.MedicineID,
-        p.PrescriptionID,
-        p.PatientID,
-        dm.Quantity,
-        dm.Description,
-        dm.CreationDate,
-        p.ServiceType,
-        u.FirstName,
-        u.MiddleName,
-        u.LastName
-      FROM DrugAndMedicine dm
-      INNER JOIN Prescription p ON p.PrescriptionID = dm.PrescriptionID
-      INNER JOIN Patient pat ON pat.PatientID = p.PatientID
-      INNER JOIN Users u ON u.UserID = pat.UserID
-      ORDER BY dm.CreationDate DESC
-    `);
+        pr.PrescriptionID,
+        pr.CreationDate,
+        pr.ServiceType,
 
-    console.log("Prescription result:", result.recordset);  // <--- DEBUG
+        p.PatientID,
+        u.FirstName + ' ' + u.MiddleName + ' ' + u.LastName AS PatientFullName,
+
+        du.FirstName + ' ' + du.MiddleName + ' ' + du.LastName AS DoctorFullName
+
+      FROM Prescription pr
+      INNER JOIN Patient p ON pr.PatientID = p.PatientID
+      INNER JOIN Users u ON p.UserID = u.UserID
+      INNER JOIN Doctors d ON pr.DoctorID = d.DoctorID
+      INNER JOIN Users du ON d.UserID = du.UserID
+
+      ORDER BY pr.CreationDate DESC
+    `);
 
     res.json(result.recordset);
   } catch (err) {
-    console.error("Error fetching prescriptions:", err.message);
+    console.error("Error fetching prescriptions grid:", err.message);
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
 // -----------------------------
-// GET prescriptions by PatientID (for patients)
+// REPORT: prescriptions + items by PatientID (for printing)
+// Equivalent to C# GetPrescriptionReport
 // -----------------------------
-router.get("/patient/:patientID", async (req, res) => {
+router.get("/report/:patientID", async (req, res) => {
   try {
     const pool = await poolPromise;
     const result = await pool.request()
       .input("patientID", req.params.patientID)
       .query(`
-        SELECT dm.MedicineID, p.PrescriptionID, p.PatientID, dm.Quantity, dm.Description, dm.CreationDate,
-               p.ServiceType,
-               pat.PatientID, pat.UserID,
-               u.FirstName, u.LastName
-        FROM DrugAndMedicine dm
-        INNER JOIN Prescription p ON p.PrescriptionID = dm.PrescriptionID
-        INNER JOIN Patient pat ON pat.PatientID = p.PatientID
-        INNER JOIN [Users] u ON u.UserID = pat.UserID
-        WHERE p.PatientID = @patientID
-        ORDER BY dm.CreationDate DESC
+        SELECT 
+          pr.PrescriptionID,
+          pr.CreationDate,
+          pr.EndDate,
+          pr.ServiceType,
+
+          -- Patient Info
+          p.PatientID,
+          u.FirstName + ' ' + u.MiddleName + ' ' + u.LastName AS PatientFullName,
+          p.HomeAddress AS PatientAddress,
+          p.Sex,
+          p.Age,
+
+          -- Doctor Info
+          d.DoctorID,
+          du.FirstName + ' ' + du.MiddleName + ' ' + du.LastName AS DoctorFullName,
+          d.LicenseNumber AS DoctorLicenseNumber,
+
+          -- RX Item Info
+          dm.MedicineID,
+          dm.Description AS MedicineDescription,
+          dm.Quantity,
+          dm.CreationDate AS MedicineDate
+
+        FROM Prescription pr
+        INNER JOIN Patient p ON pr.PatientID = p.PatientID
+        INNER JOIN Users u ON p.UserID = u.UserID
+        INNER JOIN Doctors d ON pr.DoctorID = d.DoctorID
+        INNER JOIN Users du ON d.UserID = du.UserID
+        INNER JOIN DrugAndMedicine dm 
+          ON pr.PrescriptionID = dm.PrescriptionID
+
+        WHERE pr.PatientID = @patientID
+
+        ORDER BY pr.CreationDate DESC, pr.PrescriptionID, dm.MedicineID
       `);
+
     res.json(result.recordset);
   } catch (err) {
+    console.error("Error fetching prescription report:", err.message);
     res.status(500).json({ success: false, message: err.message });
   }
 });
