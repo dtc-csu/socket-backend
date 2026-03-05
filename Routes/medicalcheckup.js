@@ -101,10 +101,41 @@ router.get('/patient/:patientId', async (req, res) => {
     const result = await pool.request()
       .input('patientId', patientId)
       .query(`
-        SELECT *
-        FROM MedicalCheckup
-        WHERE PatientID = @patientId
-        ORDER BY CheckupDate DESC
+        SELECT 
+          mc.MedicalCheckupID,
+          mc.PatientID,
+          mc.CheckupDate,
+          mc.Diagnosis,
+          mc.HealthRecommendations,
+          mc.BP,
+          mc.CR,
+          mc.RR,
+          mc.Temp,
+          mc.O2Sat,
+          mc.Weight,
+          mc.Height,
+          mc.BMI,
+          mc.CreatedAt,
+          mc.Status,
+
+          mc.DoctorID,
+          d.LicenseNumber,
+
+          u.FirstName + ' ' + u.LastName AS PatientFullName,
+          u.PhoneNumber AS PhoneNumber,
+
+          p.Sex AS Gender,
+          p.Age,
+          p.HomeAddress AS address,
+          p.CollegeOffice AS college
+
+        FROM MedicalCheckup mc
+        INNER JOIN Patient p ON mc.PatientID = p.PatientID
+        INNER JOIN Users u ON p.UserID = u.UserID
+        LEFT JOIN Doctors d ON mc.DoctorID = d.DoctorID
+
+        WHERE mc.PatientID = @patientId
+        ORDER BY mc.CheckupDate DESC
       `);
 
     return res.json(result.recordset);
