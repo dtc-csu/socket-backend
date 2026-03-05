@@ -1,3 +1,37 @@
+const express = require('express');
+const router = express.Router();
+const poolPromise = require('../db');
+
+// ============================================================
+// GET ALL REFERRALS
+// ============================================================
+router.get('/', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().query(`
+      SELECT
+        r.ReferralID,
+        r.PatientID,
+        r.ReferralDate,
+        r.ChiefComplaint,
+        r.BriefHistoryandPhysicalExamination,
+        r.Impression,
+        r.Reasons,
+        r.CreationDate,
+        r.DoctorID,
+        CONCAT(u.FirstName, ' ', COALESCE(CONCAT(u.MiddleName, ' '), ''), u.LastName) AS DoctorName,
+        d.LicenseNumber
+      FROM Referral r
+      LEFT JOIN Doctors d ON r.DoctorID = d.DoctorID
+      LEFT JOIN Users u ON d.UserID = u.UserID
+      ORDER BY r.CreationDate DESC
+    `);
+    res.json(result.recordset);
+  } catch (err) {
+    console.error("Error fetching referrals:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 // ============================================================
 // GET REFERRAL REPORTS BY PATIENT ID (for reporting, no follow-up)
 // ============================================================
@@ -112,41 +146,6 @@ router.get('/report/:followUpId', async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 });
-const express = require('express');
-const router = express.Router();
-const poolPromise = require('../db');
-
-// ============================================================
-// GET ALL REFERRALS
-// ============================================================
-router.get('/', async (req, res) => {
-  try {
-    const pool = await poolPromise;
-    const result = await pool.request().query(`
-      SELECT
-        r.ReferralID,
-        r.PatientID,
-        r.ReferralDate,
-        r.ChiefComplaint,
-        r.BriefHistoryandPhysicalExamination,
-        r.Impression,
-        r.Reasons,
-        r.CreationDate,
-        r.DoctorID,
-        CONCAT(u.FirstName, ' ', COALESCE(CONCAT(u.MiddleName, ' '), ''), u.LastName) AS DoctorName,
-        d.LicenseNumber
-      FROM Referral r
-      LEFT JOIN Doctors d ON r.DoctorID = d.DoctorID
-      LEFT JOIN Users u ON d.UserID = u.UserID
-      ORDER BY r.CreationDate DESC
-    `);
-    res.json(result.recordset);
-  } catch (err) {
-    console.error("Error fetching referrals:", err);
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
 // ============================================================
 // GET REFERRALS BY PATIENT ID
 // ============================================================
