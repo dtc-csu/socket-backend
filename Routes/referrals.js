@@ -43,21 +43,20 @@ router.get('/report/patient/:patientId', async (req, res) => {
       .input('patientId', patientId)
       .query(`
         SELECT
-          r.ReferralID AS referralid,
-          r.PatientID AS patientId,
-          r.ReferralDate AS referralDate,
-          NULL AS followUpDate,
-          r.ChiefComplaint AS chiefComplaint,
-          r.BriefHistoryandPhysicalExamination AS briefHistoryandPhysicalExamination,
-          r.Impression AS impression,
-          r.Reasons AS reasons,
-          r.DoctorID AS doctorId,
-          CONCAT(u.FirstName, ' ', COALESCE(u.MiddleName, ''), ' ', u.LastName) AS patientName,
-          p.Age AS age,
-          p.Sex AS sex,
-          p.CivilStatus AS civilStatus,
-          p.HomeAddress AS address,
-          d.LicenseNumber AS doctorLicenseNumber
+          r.ReferralID,
+          r.PatientID,
+          r.ReferralDate,
+          r.ChiefComplaint,
+          r.BriefHistoryandPhysicalExamination,
+          r.Impression,
+          r.Reasons,
+          r.DoctorID,
+          CONCAT(u.FirstName, ' ', COALESCE(u.MiddleName, ''), ' ', u.LastName) AS PatientName,
+          p.Age,
+          p.Sex,
+          p.CivilStatus,
+          p.HomeAddress,
+          d.LicenseNumber
         FROM Referral r
         LEFT JOIN Patient p ON r.PatientID = p.PatientID
         LEFT JOIN Users u ON p.UserID = u.UserID
@@ -106,46 +105,7 @@ router.get('/report/referral/:referralId', async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 });
-// ============================================================
-// GET FOLLOWUP REPORT BY FOLLOWUP ID (for reporting)
-// ============================================================
-router.get('/report/:followUpId', async (req, res) => {
-  const followUpId = req.params.followUpId;
-  try {
-    const pool = await poolPromise;
-    const result = await pool.request()
-      .input('followUpId', followUpId)
-      .query(`
-        SELECT
-          f.FollowUpID,
-          f.PatientID,
-          CONCAT(u.FirstName, ' ', COALESCE(u.MiddleName, ''), ' ', u.LastName) AS PatientName,
-          p.Age,
-          p.Sex,
-          p.CivilStatus,
-          p.HomeAddress AS Address,
-          f.FollowUpDate,
-          f.ChiefComplaint,
-          f.BriefHistoryandPhysicalExamination,
-          f.Impression,
-          f.Reasons,
-          d.LicenseNumber AS PhysicianLicensenNumber,
-          f.CreationDate
-        FROM FollowUps f
-        LEFT JOIN Patient p ON f.PatientID = p.PatientID
-        LEFT JOIN Users u ON p.UserID = u.UserID
-        LEFT JOIN Doctors d ON f.DoctorID = d.DoctorID
-        WHERE f.FollowUpID = @followUpId
-      `);
-    if (!result.recordset || result.recordset.length === 0) {
-      return res.status(404).json({ success: false, message: 'FollowUp report not found' });
-    }
-    res.json(result.recordset[0]);
-  } catch (err) {
-    console.error("Error fetching followup report:", err);
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
+
 // ============================================================
 // GET REFERRALS BY PATIENT ID
 // ============================================================
