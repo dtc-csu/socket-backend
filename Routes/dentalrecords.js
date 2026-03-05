@@ -104,8 +104,8 @@ router.get('/report/:patientId/teeth', async (req, res) => {
   }
 });
 
-// ---------------------- REPORT: latest dental record with patient/tooth info ----------------------
-// Rough equivalent of C# GetDentalRecordReport(string patientId)
+// ---------------------- REPORT: latest dental record with ALL its teeth ----------------------
+// Returns one row per tooth (header fields duplicated per row)
 router.get('/report/:patientId', async (req, res) => {
   const patientId = req.params.patientId;
 
@@ -114,7 +114,13 @@ router.get('/report/:patientId', async (req, res) => {
     const result = await pool.request()
       .input('patientId', patientId)
       .query(`
-        SELECT TOP 1
+        ;WITH LatestRecord AS (
+          SELECT TOP 1 *
+          FROM DentalRecord
+          WHERE PatientID = @patientId
+          ORDER BY CreationDate DESC
+        )
+        SELECT
           dr.DentalRecordID,
           dr.PatientID,
           dr.DentalService,
@@ -132,33 +138,20 @@ router.get('/report/:patientId', async (req, res) => {
           ISNULL(dt.DentalToothID, 0) AS DentalToothID,
           dt.ToothNumber,
           dt.ProcedureDone,
-          dt.CreationDate AS ToothCreationDate
+          ISNULL(dt.CreationDate, '1900-01-01') AS ToothCreationDate
 
-        FROM DentalRecord dr
+        FROM LatestRecord dr
         LEFT JOIN Patient p ON dr.PatientID = p.PatientID
         LEFT JOIN Users u ON p.UserID = u.UserID
-        OUTER APPLY (
-          SELECT TOP 1 *
-          FROM DentalTooth dt
-          WHERE dt.DentalRecordID = dr.DentalRecordID
-          ORDER BY dt.CreationDate DESC
-        ) dt
-        WHERE dr.PatientID = @patientId
-        ORDER BY dr.CreationDate DESC
+        LEFT JOIN DentalTooth dt ON dt.DentalRecordID = dr.DentalRecordID
+        ORDER BY dt.CreationDate DESC
       `);
 
     if (!result.recordset || result.recordset.length === 0) {
-      return res.json(null); // or 404 depending on client expectations
+      return res.json([]); // no record/teeth for this patient
     }
 
-    // Avoid sending ToothCreationDate: null, which breaks .NET DateTime
-    const row = result.recordset[0];
-    const model = { ...row };
-    if (model.ToothCreationDate == null) {
-      delete model.ToothCreationDate;
-    }
-
-    return res.json(model);
+    return res.json(result.recordset);
   } catch (err) {
     console.error('Error fetching dental record report:', err);
     return res.status(500).json({ success: false, message: err.message });
