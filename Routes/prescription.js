@@ -40,14 +40,72 @@ router.get("/", async (req, res) => {
 });
 
 // -----------------------------
-// REPORT: prescriptions + items by PatientID (for printing)
-// Equivalent to C# GetPrescriptionReport
+// REPORT: latest (TOP 1) prescription for a patient + all its items
+// One prescription header, many DrugAndMedicine rows
 // -----------------------------
 router.get("/report/:patientID", async (req, res) => {
   try {
     const pool = await poolPromise;
     const result = await pool.request()
       .input("patientID", req.params.patientID)
+      .query(`
+        ;WITH LatestPrescription AS (
+          SELECT TOP 1 *
+          FROM Prescription
+          WHERE PatientID = @patientID
+          ORDER BY CreationDate DESC
+        )
+        SELECT 
+          pr.PrescriptionID,
+          pr.CreationDate,
+          pr.EndDate,
+          pr.ServiceType,
+
+          -- Patient Info
+          p.PatientID,
+          u.FirstName + ' ' + u.MiddleName + ' ' + u.LastName AS PatientFullName,
+          p.HomeAddress AS PatientAddress,
+          p.Sex,
+          p.Age,
+
+          -- Doctor Info
+          d.DoctorID,
+          du.FirstName + ' ' + du.MiddleName + ' ' + du.LastName AS DoctorFullName,
+          d.LicenseNumber AS DoctorLicenseNumber,
+
+          -- RX Item Info
+          dm.MedicineID,
+          dm.Description AS MedicineDescription,
+          dm.Quantity,
+          dm.CreationDate AS MedicineDate
+
+        FROM LatestPrescription pr
+        INNER JOIN Patient p ON pr.PatientID = p.PatientID
+        INNER JOIN Users u ON p.UserID = u.UserID
+        INNER JOIN Doctors d ON pr.DoctorID = d.DoctorID
+        INNER JOIN Users du ON d.UserID = du.UserID
+        INNER JOIN DrugAndMedicine dm 
+          ON pr.PrescriptionID = dm.PrescriptionID
+
+        ORDER BY dm.MedicineID
+      `);
+
+    return res.json(result.recordset);
+  } catch (err) {
+    console.error("Error fetching prescription report:", err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// -----------------------------
+// REPORT: one prescription + all its drugs by PrescriptionID
+// (single header, many DrugAndMedicine rows)
+// -----------------------------
+router.get("/report/by-id/:prescriptionID", async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input("prescriptionID", req.params.prescriptionID)
       .query(`
         SELECT 
           pr.PrescriptionID,
@@ -81,15 +139,15 @@ router.get("/report/:patientID", async (req, res) => {
         INNER JOIN DrugAndMedicine dm 
           ON pr.PrescriptionID = dm.PrescriptionID
 
-        WHERE pr.PatientID = @patientID
+        WHERE pr.PrescriptionID = @prescriptionID
 
-        ORDER BY pr.CreationDate DESC, pr.PrescriptionID, dm.MedicineID
+        ORDER BY dm.MedicineID
       `);
 
-    res.json(result.recordset);
+    return res.json(result.recordset);
   } catch (err) {
-    console.error("Error fetching prescription report:", err.message);
-    res.status(500).json({ success: false, message: err.message });
+    console.error("Error fetching prescription-by-id report:", err.message);
+    return res.status(500).json({ success: false, message: err.message });
   }
 });
 
