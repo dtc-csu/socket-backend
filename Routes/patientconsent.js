@@ -17,9 +17,9 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.post('/', generic.add("PatientConsent", "MedicalHistoryId"));        // Add patient consent
-router.put('/:id', generic.edit("PatientConsent", "MedicalHistoryId"));     // Update patient consent
-router.delete('/:id', generic.delete("PatientConsent", "MedicalHistoryId"));// Delete patient consent
+router.post('/', generic.add("PatientConsent", "ConsentID"));        // Add patient consent
+router.put('/:id', generic.edit("PatientConsent", "ConsentID"));     // Update patient consent
+router.delete('/:id', generic.delete("PatientConsent", "ConsentID"));// Delete patient consent
 
 // ----------------------------------------------------
 // GET PATIENT CONSENT BY PATIENT ID
@@ -61,7 +61,7 @@ router.get('/:id', async (req, res) => {
       .query(`
         SELECT *
         FROM PatientConsent
-        WHERE MedicalHistoryId = @id
+        WHERE ConsentID = @id
       `);
 
     if (result.recordset.length > 0) {

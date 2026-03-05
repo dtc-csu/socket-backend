@@ -57,8 +57,8 @@ router.get('/patient/:patientId', async (req, res) => {
           pu.UserID AS PatientUserID,
           p.PatientID,
           p.Gender,
-          p.DOB,
-          p.Address,
+          p.DateofBirth AS DateOfBirth,
+          p.HomeAddress,
           p.ContactNumber,
           CONCAT(du.FirstName, ' ', COALESCE(CONCAT(du.MiddleName, ' '), ''), du.LastName) AS DoctorName,
           du.UserID AS DoctorUserID
