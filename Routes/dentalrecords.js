@@ -121,7 +121,14 @@ router.get('/report/:patientId', async (req, res) => {
       return res.json(null); // or 404 depending on client expectations
     }
 
-    return res.json(result.recordset[0]);
+    // Avoid sending ToothCreationDate: null, which breaks .NET DateTime
+    const row = result.recordset[0];
+    const model = { ...row };
+    if (model.ToothCreationDate == null) {
+      delete model.ToothCreationDate;
+    }
+
+    return res.json(model);
   } catch (err) {
     console.error('Error fetching dental record report:', err);
     return res.status(500).json({ success: false, message: err.message });
