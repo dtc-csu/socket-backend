@@ -22,7 +22,7 @@ router.post('/', async (req, res) => {
   if ('ConsentID' in req.body) {
     delete req.body.ConsentID;
   }
-  return generic.add("PatientConsent")(req, res);
+  return generic.add("PatientConsent", "ConsentID")(req, res);
 });        // Add patient consent
 router.put('/:id', generic.edit("PatientConsent", "ConsentID"));     // Update patient consent
 router.delete('/:id', generic.delete("PatientConsent", "ConsentID"));// Delete patient consent
