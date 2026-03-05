@@ -1,3 +1,117 @@
+// ============================================================
+// GET REFERRAL REPORTS BY PATIENT ID (for reporting, no follow-up)
+// ============================================================
+router.get('/report/patient/:patientId', async (req, res) => {
+  const patientId = req.params.patientId;
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('patientId', patientId)
+      .query(`
+        SELECT
+          r.ReferralID AS referralid,
+          r.PatientID AS patientId,
+          r.ReferralDate AS referralDate,
+          NULL AS followUpDate,
+          r.ChiefComplaint AS chiefComplaint,
+          r.BriefHistoryandPhysicalExamination AS briefHistoryandPhysicalExamination,
+          r.Impression AS impression,
+          r.Reasons AS reasons,
+          r.DoctorID AS doctorId,
+          CONCAT(u.FirstName, ' ', COALESCE(u.MiddleName, ''), ' ', u.LastName) AS patientName,
+          p.Age AS age,
+          p.Sex AS sex,
+          p.CivilStatus AS civilStatus,
+          p.HomeAddress AS address,
+          d.LicenseNumber AS doctorLicenseNumber
+        FROM Referral r
+        LEFT JOIN Patient p ON r.PatientID = p.PatientID
+        LEFT JOIN Users u ON p.UserID = u.UserID
+        LEFT JOIN Doctors d ON r.DoctorID = d.DoctorID
+        WHERE r.PatientID = @patientId
+        ORDER BY r.ReferralDate DESC
+      `);
+    if (!result.recordset || result.recordset.length === 0) {
+      return res.status(404).json({ success: false, message: 'No referral reports found for patient' });
+    }
+    res.json(result.recordset);
+  } catch (err) {
+    console.error("Error fetching referral reports by patient:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+// ============================================================
+// GET REFERRAL REPORT BY REFERRAL ID (for reporting)
+// ============================================================
+router.get('/report/referral/:referralId', async (req, res) => {
+  const referralId = req.params.referralId;
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('referralId', referralId)
+      .query(`
+        SELECT
+          r.ReferralID AS referralid,
+          r.PatientID AS patientId,
+          r.ReferralDate AS referralDate,
+          NULL AS followUpDate,
+          r.ChiefComplaint AS chiefComplaint,
+          r.BriefHistoryandPhysicalExamination AS briefHistoryandPhysicalExamination,
+          r.Impression AS impression,
+          r.Reasons AS reasons,
+          r.DoctorID AS doctorId
+        FROM Referral r
+        WHERE r.ReferralID = @referralId
+      `);
+    if (!result.recordset || result.recordset.length === 0) {
+      return res.status(404).json({ success: false, message: 'Referral report not found' });
+    }
+    res.json(result.recordset[0]);
+  } catch (err) {
+    console.error("Error fetching referral report:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+// ============================================================
+// GET FOLLOWUP REPORT BY FOLLOWUP ID (for reporting)
+// ============================================================
+router.get('/report/:followUpId', async (req, res) => {
+  const followUpId = req.params.followUpId;
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('followUpId', followUpId)
+      .query(`
+        SELECT
+          f.FollowUpID,
+          f.PatientID,
+          CONCAT(u.FirstName, ' ', COALESCE(u.MiddleName, ''), ' ', u.LastName) AS PatientName,
+          p.Age,
+          p.Sex,
+          p.CivilStatus,
+          p.HomeAddress AS Address,
+          f.FollowUpDate,
+          f.ChiefComplaint,
+          f.BriefHistoryandPhysicalExamination,
+          f.Impression,
+          f.Reasons,
+          d.LicenseNumber AS PhysicianLicensenNumber,
+          f.CreationDate
+        FROM FollowUps f
+        LEFT JOIN Patient p ON f.PatientID = p.PatientID
+        LEFT JOIN Users u ON p.UserID = u.UserID
+        LEFT JOIN Doctors d ON f.DoctorID = d.DoctorID
+        WHERE f.FollowUpID = @followUpId
+      `);
+    if (!result.recordset || result.recordset.length === 0) {
+      return res.status(404).json({ success: false, message: 'FollowUp report not found' });
+    }
+    res.json(result.recordset[0]);
+  } catch (err) {
+    console.error("Error fetching followup report:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 const express = require('express');
 const router = express.Router();
 const poolPromise = require('../db');
