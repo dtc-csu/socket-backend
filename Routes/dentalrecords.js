@@ -108,7 +108,7 @@ router.get('/report/:patientId', async (req, res) => {
         LEFT JOIN Patient p ON dr.PatientID = p.PatientID
         LEFT JOIN Users u ON p.UserID = u.UserID
         OUTER APPLY (
-          SELECT TOP 1 *
+          SELECT *
           FROM DentalTooth dt
           WHERE dt.DentalRecordID = dr.DentalRecordID
           ORDER BY dt.CreationDate DESC
