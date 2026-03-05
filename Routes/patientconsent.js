@@ -16,8 +16,7 @@ router.get('/report/:patientId', async (req, res) => {
       .query(`
         SELECT TOP 1
           pc.ConsentID,
-          pc.MedicalHistoryId,
-          pc.PatientID,
+            pc.PatientID,
           pc.DoctorID,
           pc.PhysicianOfficeAddress,
           pc.PhysicianOfficeNo,
