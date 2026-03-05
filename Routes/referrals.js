@@ -55,8 +55,8 @@ router.get('/report/patient/:patientId', async (req, res) => {
           p.Age,
           p.Sex,
           p.CivilStatus,
-          p.HomeAddress,
-          d.LicenseNumber
+          p.HomeAddress AS Address,
+          d.LicenseNumber AS PhysicianLicenseNumber,
         FROM Referral r
         LEFT JOIN Patient p ON r.PatientID = p.PatientID
         LEFT JOIN Users u ON p.UserID = u.UserID
