@@ -74,6 +74,46 @@ router.get('/patient/:patientId', async (req, res) => {
   }
 });
 
+// ---------------------- REPORT TEETH: all teeth for latest dental record ----------------------
+router.get('/report/:patientId/teeth', async (req, res) => {
+  const patientId = req.params.patientId;
+
+  try {
+    const pool = await poolPromise;
+
+    // Get latest DentalRecordID for this patient
+    const recordResult = await pool.request()
+      .input('patientId', patientId)
+      .query(`
+        SELECT TOP 1 DentalRecordID
+        FROM DentalRecord
+        WHERE PatientID = @patientId
+        ORDER BY CreationDate DESC
+      `);
+
+    if (!recordResult.recordset || recordResult.recordset.length === 0) {
+      return res.json([]); // no dental record -> no teeth
+    }
+
+    const dentalRecordId = recordResult.recordset[0].DentalRecordID;
+
+    // Get all teeth for that record
+    const teethResult = await pool.request()
+      .input('dentalRecordId', dentalRecordId)
+      .query(`
+        SELECT DentalToothID, DentalRecordID, ToothNumber, ProcedureDone, CreationDate
+        FROM DentalTooth
+        WHERE DentalRecordID = @dentalRecordId
+        ORDER BY CreationDate DESC
+      `);
+
+    return res.json(teethResult.recordset);
+  } catch (err) {
+    console.error('Error fetching dental record teeth:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // ---------------------- REPORT: latest dental record with patient/tooth info ----------------------
 // Rough equivalent of C# GetDentalRecordReport(string patientId)
 router.get('/report/:patientId', async (req, res) => {
