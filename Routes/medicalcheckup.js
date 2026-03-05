@@ -8,9 +8,86 @@ const generic = require('../Controllers/genericController')(poolPromise);
 // GENERIC CRUD ROUTES FOR MedicalCheckup
 // ----------------------------------------------------
 router.get('/', generic.getAll("MedicalCheckup", "MedicalCheckupID"));      // Get all medical checkups
-router.post('/', generic.add("MedicalCheckup", "MedicalCheckupID"));        // Add medical checkup
+
+// Custom POST to handle date conversion / empty values safely
+router.post('/', async (req, res) => {
+  try {
+    const cleanedBody = { ...req.body };
+
+    Object.keys(cleanedBody).forEach((key) => {
+      const value = cleanedBody[key];
+
+      // Treat empty strings as NULL so SQL Server doesn't try to convert '' to DATETIME
+      if (value === "") {
+        cleanedBody[key] = null;
+        return;
+      }
+
+      // Auto-convert any *Date-like* fields from string to JS Date
+      if (typeof value === 'string' && /date/i.test(key)) {
+        const parsed = new Date(value);
+        if (!isNaN(parsed.getTime())) {
+          cleanedBody[key] = parsed;
+        }
+      }
+    });
+
+    // Replace body and delegate to generic add
+    req.body = cleanedBody;
+    return generic.add("MedicalCheckup", "MedicalCheckupID")(req, res);
+  } catch (err) {
+    console.error("[MedicalCheckup ADD ERROR]", err);
+    return res.status(500).json({
+      success: false,
+      message: 'AddMedicalCheckup Exception: ' + (err?.message || 'Unexpected error')
+    });
+  }
+});
+
 router.put('/:id', generic.edit("MedicalCheckup", "MedicalCheckupID"));     // Update medical checkup
 router.delete('/:id', generic.delete("MedicalCheckup", "MedicalCheckupID"));// Delete medical checkup
+
+// ----------------------------------------------------
+// GET FULL MEDICAL CHECKUP GRID (JOINED DATA)
+// Equivalent to C# GetAllGrid
+// ----------------------------------------------------
+router.get('/grid', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+
+    const result = await pool.request().query(`
+      SELECT
+        mc.MedicalCheckupID,
+        mc.CheckupDate,
+        mc.Diagnosis,
+        mc.HealthRecommendations,
+        mc.Status,
+        mc.DoctorID,
+
+        p.PatientID,
+        p.Age,
+        p.Sex,
+        p.CollegeOffice,
+
+        u.FirstName + ' ' + u.MiddleName + ' ' + u.LastName AS PatientFullName,
+
+        du.FirstName + ' ' + du.MiddleName + ' ' + du.LastName AS DoctorName
+
+      FROM MedicalCheckup mc
+      INNER JOIN Patient p ON mc.PatientID = p.PatientID
+      INNER JOIN Users u ON p.UserID = u.UserID
+      INNER JOIN Doctors d ON mc.DoctorID = d.DoctorID
+      INNER JOIN Users du ON d.UserID = du.UserID
+
+      ORDER BY mc.CheckupDate DESC
+    `);
+
+    return res.json(result.recordset);
+  } catch (err) {
+    console.error('Error fetching medical checkup grid:', err);
+    return res.status(500).json({ success: false, message: 'Server error: ' + err.message });
+  }
+});
 
 // ----------------------------------------------------
 // GET MEDICAL CHECKUPS BY PATIENT ID
