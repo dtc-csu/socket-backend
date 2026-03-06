@@ -92,39 +92,55 @@ app.use(bodyParser.json());
 app.get("/", (req, res) => {
   res.send("✅ API + Socket.IO + GetStream running");
 });
-const callRoutes = require("./Routes/call");
-app.use("/api/call", callRoutes);
-/* ===================== YOUR EXISTING ROUTES ===================== */
-app.use("/ChatMessages", require("./Routes/chat"));
-app.use("/Users", require("./Routes/Users"));
-app.use("/prescription", require("./Routes/prescription"));
-app.use("/Appointments", require("./Routes/appointments"));
-app.use("/FollowUps", require("./Routes/followups"));
-app.use("/Referrals", require("./Routes/referrals"));
-app.use("/patients", require("./Routes/patients"));
-app.use("/Doctors", require("./Routes/doctors"));
+// Helper to safely require and mount route modules
+function safeMount(mountPoint, modulePath) {
+  try {
+    const mod = require(modulePath);
+    const isRouter = typeof mod === 'function' || (mod && typeof mod === 'object' && (mod.handle || mod.stack));
+    if (!isRouter) {
+      console.error(`Invalid route module at ${modulePath} — mounting error handler instead.`);
+      const errRouter = express.Router();
+      errRouter.use((req, res) => res.status(500).json({ success: false, message: `Invalid route module: ${modulePath}` }));
+      app.use(mountPoint, errRouter);
+      return;
+    }
+    app.use(mountPoint, mod);
+  } catch (e) {
+    console.error(`Failed to load route ${modulePath}:`, e && e.message ? e.message : e);
+    const errRouter = express.Router();
+    errRouter.use((req, res) => res.status(500).json({ success: false, message: `Failed to load route: ${modulePath}` }));
+    app.use(mountPoint, errRouter);
+  }
+}
 
-// New route for prescription requests
-app.use("/prescription-requests", require("./Routes/prescription_requests"));
-app.use("/ContactPerson", require("./Routes/contactperson"));
-app.use("/FamilyInfo", require("./Routes/familyinfo"));
-app.use("/Dental", require("./Routes/dental"));
-app.use("/DentalRecords", require("./Routes/dentalrecords"));
-app.use("/MedicalRecords", require("./Routes/medicalrecords"));
-app.use("/AccountLogs", require("./Routes/accountLogs"));
-app.use("/FamilyHistory", require("./Routes/familyhistory"));
-app.use("/LabTests", require("./Routes/labtests"));
-app.use("/MedicalCheckup", require("./Routes/medicalcheckup"));
-app.use("/OBHistory", require("./Routes/obhistory"));
-app.use("/PastMedicalHistory", require("./Routes/pastmedicalhistory"));
-app.use("/PatientConsent", require("./Routes/patientconsent"));
-app.use("/ReviewOfSystems", require("./Routes/reviewofsystems"));
-app.use("/SystemSettings", require("./Routes/systemsettings"));
-app.use("/Transactions", require("./Routes/transactions"));
-const streamWebhook = require('./Routes/streamWebhook');
-app.use('/api/stream', streamWebhook);
-const generic = require("./Routes/fcm_generic");
-app.use("/api/generic", generic);
+// Mount routes safely
+safeMount('/api/call', './Routes/call');
+safeMount('/ChatMessages', './Routes/chat');
+safeMount('/Users', './Routes/Users');
+safeMount('/prescription', './Routes/prescription');
+safeMount('/Appointments', './Routes/appointments');
+safeMount('/FollowUps', './Routes/followups');
+safeMount('/Referrals', './Routes/referrals');
+safeMount('/patients', './Routes/patients');
+safeMount('/Doctors', './Routes/doctors');
+safeMount('/prescription-requests', './Routes/prescription_requests');
+safeMount('/ContactPerson', './Routes/contactperson');
+safeMount('/FamilyInfo', './Routes/familyinfo');
+safeMount('/Dental', './Routes/dental');
+safeMount('/DentalRecords', './Routes/dentalrecords');
+safeMount('/MedicalRecords', './Routes/medicalrecords');
+safeMount('/AccountLogs', './Routes/accountLogs');
+safeMount('/FamilyHistory', './Routes/familyhistory');
+safeMount('/LabTests', './Routes/labtests');
+safeMount('/MedicalCheckup', './Routes/medicalcheckup');
+safeMount('/OBHistory', './Routes/obhistory');
+safeMount('/PastMedicalHistory', './Routes/pastmedicalhistory');
+safeMount('/PatientConsent', './Routes/patientconsent');
+safeMount('/ReviewOfSystems', './Routes/reviewofsystems');
+safeMount('/SystemSettings', './Routes/systemsettings');
+safeMount('/Transactions', './Routes/transactions');
+safeMount('/api/stream', './Routes/streamWebhook');
+safeMount('/api/generic', './Routes/fcm_generic');
 
 /* ===================== SERVER START ===================== */
 const PORT = process.env.PORT || 3000;
