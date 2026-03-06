@@ -131,6 +131,38 @@ router.get('/report/:patientId', async (req, res) => {
     return res.status(500).json({ success: false, message: 'Server error: ' + err.message });
   }
 });
+
+// Medical consent grid endpoint (with joins)
+router.get('/grid', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().query(`
+      SELECT
+        pc.PatientID,
+        pc.DoctorID,
+        pc.Remarks,
+        pc.CreatedAt,
+
+        p.CollegeOffice,
+
+        CONCAT(u.FirstName, ' ', u.MiddleName, ' ', u.LastName) AS PatientFullName,
+
+        CONCAT(du.FirstName, ' ', du.MiddleName, ' ', du.LastName) AS DoctorName
+
+      FROM PatientConsent pc
+      LEFT JOIN Patient p ON pc.PatientID = p.PatientID
+      LEFT JOIN Users u ON p.UserID = u.UserID
+      LEFT JOIN Doctors d ON pc.DoctorID = d.DoctorID
+      LEFT JOIN Users du ON d.UserID = du.UserID
+
+      ORDER BY pc.CreatedAt DESC
+    `);
+    res.json(result.recordset);
+  } catch (err) {
+    console.error('PatientConsent Grid Exception:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 // GENERIC CRUD ROUTES FOR PatientConsent
 // ----------------------------------------------------
 router.get('/', async (req, res) => {

@@ -22,11 +22,29 @@ router.get("/", async (req, res) => {
 });
 
 // Medical record grid endpoint (with joins)
-router.get('/grid-joined', async (req, res) => {
+router.get('/grid', async (req, res) => {
   try {
     const pool = await poolPromise;
-    // TODO: Add actual join logic as needed
-    const result = await pool.request().query('SELECT * FROM MedicalRecords ORDER BY CreationDate DESC');
+    const result = await pool.request().query(`
+      SELECT
+        mr.MedicalRecordID,
+        mr.VisitDate,
+        mr.BloodPressure,
+        mr.GeneralAppearance,
+        mr.Diagnosis,
+        mr.ChiefComplaint,
+
+        p.PatientID,
+        p.CollegeOffice,
+
+        CONCAT(u.FirstName, ' ', u.MiddleName, ' ', u.LastName) AS PatientFullName
+
+      FROM MedicalRecords mr
+      INNER JOIN Patient p ON mr.PatientID = p.PatientID
+      INNER JOIN Users u ON p.UserID = u.UserID
+
+      ORDER BY mr.VisitDate DESC
+    `);
     res.json(result.recordset);
   } catch (err) {
     console.error('GridJoined Exception:', err);

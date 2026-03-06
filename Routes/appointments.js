@@ -154,7 +154,7 @@ router.get('/date/:date', async (req, res) => {
       .query(`
         SELECT *
         FROM Appointments
-        WHERE DATE(AppointmentDate) = DATE(@date)
+        WHERE CONVERT(date, AppointmentDate) = CONVERT(date, @date)
         ORDER BY AppointmentDate ASC
       `);
     res.json(result.recordset);
@@ -193,7 +193,7 @@ router.get('/check/:patientId/:date', async (req, res) => {
         SELECT COUNT(*) AS appointmentCount
         FROM Appointments
         WHERE PatientID = @patientId
-          AND DATE(AppointmentDate) = DATE(@date)
+          AND CONVERT(date, AppointmentDate) = CONVERT(date, @date)
           AND Status NOT IN ('Cancelled', 'Rejected')
       `);
     
