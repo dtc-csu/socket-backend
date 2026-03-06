@@ -87,10 +87,7 @@ router.post("/full", async (req, res) => {
       .input("AllergicImmunologic", r.AllergicImmunologic)
       .input("DiagnosisAssessment", r.DiagnosisAssessment)
       .input("PlanManagement", r.PlanManagement)
-      .input("PastMedicalandMedicationHistory", typeof r.PastMedicalandMedicationHistory === 'string' ? r.PastMedicalandMedicationHistory : null)
-      .input("ObstetricandGynecologicHistory", typeof r.ObstetricandGynecologicHistory === 'string' ? r.ObstetricandGynecologicHistory : null)
-      .input("FamilyHistory", typeof r.FamilyHistory === 'string' ? r.FamilyHistory : null)
-      .query('INSERT INTO MedicalRecords (PatientID, ChiefComplaint, HistoryofPresentIllness, Constitutional, HEENT, Cardiovascular, Respiratory, Gastrointestinal, Genitourinary, Musculoskeletal, Skin, Psychiatric, EndocrineHematologic, AllergicImmunologic, DiagnosisAssessment, PlanManagement, PastMedicalandMedicationHistory, ObstetricandGynecologicHistory, FamilyHistory) OUTPUT INSERTED.MedicalRecordID VALUES (@PatientID, @ChiefComplaint, @HistoryofPresentIllness, @Constitutional, @HEENT, @Cardiovascular, @Respiratory, @Gastrointestinal, @Genitourinary, @Musculoskeletal, @Skin, @Psychiatric, @EndocrineHematologic, @AllergicImmunologic, @DiagnosisAssessment, @PlanManagement, @PastMedicalandMedicationHistory, @ObstetricandGynecologicHistory, @FamilyHistory)');
+      .query('INSERT INTO MedicalRecords (PatientID, ChiefComplaint, HistoryofPresentIllness, Constitutional, HEENT, Cardiovascular, Respiratory, Gastrointestinal, Genitourinary, Musculoskeletal, Skin, Psychiatric, EndocrineHematologic, AllergicImmunologic, DiagnosisAssessment, PlanManagement) OUTPUT INSERTED.MedicalRecordID VALUES (@PatientID, @ChiefComplaint, @HistoryofPresentIllness, @Constitutional, @HEENT, @Cardiovascular, @Respiratory, @Gastrointestinal, @Genitourinary, @Musculoskeletal, @Skin, @Psychiatric, @EndocrineHematologic, @AllergicImmunologic, @DiagnosisAssessment, @PlanManagement)');
     const newId = insertResult.recordset && insertResult.recordset[0] ? insertResult.recordset[0].MedicalRecordID : null;
     const insertLog = { ob: false, past: false, family: false, review: false };
     if (newId) {
