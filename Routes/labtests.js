@@ -38,4 +38,34 @@ router.get('/patient/:patientId', async (req, res) => {
   }
 });
 
+// Lab test grid endpoint (with joins)
+router.get('/grid-joined', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().query(`
+      SELECT
+        lt.LabTestRequestID,
+        -- return ISO date string or empty to avoid null deserialization issues
+        ISNULL(CONVERT(varchar(33), lt.RequestDate, 126), '') AS RequestDate,
+        ISNULL(CONVERT(varchar(33), lt.CreatedAt, 126), '') AS CreatedAt,
+
+        p.PatientID,
+        ISNULL(CONCAT(ISNULL(u.FirstName,''), ' ', ISNULL(u.MiddleName,''), ' ', ISNULL(u.LastName,'')), '') AS PatientFullName,
+        p.Course,
+        lt.RequestingPhysician,
+        lt.Impression
+
+      FROM LabTestRequests lt
+      INNER JOIN Patient p ON lt.PatientID = p.PatientID
+      LEFT JOIN Users u ON p.UserID = u.UserID
+
+      ORDER BY lt.RequestDate DESC
+    `);
+    res.json(result.recordset);
+  } catch (err) {
+    console.error('LabTests Grid Exception:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;
