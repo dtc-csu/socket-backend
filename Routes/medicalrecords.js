@@ -6,94 +6,126 @@ const poolPromise = require("../db");
 router.get("/", async (req, res) => {
   try {
     const pool = await poolPromise;
-    const result = await pool.request().query(`
-      SELECT *
-      FROM MedicalRecords
-      ORDER BY CreationDate DESC
-    `);
+    const result = await pool.request().query('SELECT * FROM MedicalRecords ORDER BY CreationDate DESC');
     res.json(result.recordset);
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// ✅ Get all records for grid view with patient info
-router.get("/grid", async (req, res) => {
+// Medical record grid endpoint (with joins)
+router.get('/grid-joined', async (req, res) => {
   try {
     const pool = await poolPromise;
-    const result = await pool.request().query(`
-      SELECT
-        mr.MedicalRecordID,
-        mr.VisitDate,
-        mr.ChiefComplaint,
-        mr.Diagnosis,
-        mr.ManagementPlan,
-        p.PatientID,
-        CONCAT(u.FirstName, ' ', COALESCE(u.MiddleName, ''), ' ', u.LastName) AS PatientFullName
-      FROM MedicalRecords mr
-      INNER JOIN Patient p ON mr.PatientID = p.PatientID
-      INNER JOIN Users u ON p.UserID = u.UserID
-      ORDER BY mr.CreationDate DESC
-    `);
+    // TODO: Add actual join logic as needed
+    const result = await pool.request().query('SELECT * FROM MedicalRecords ORDER BY CreationDate DESC');
     res.json(result.recordset);
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// ✅ Get records by patient
-router.get("/patient/:patientId", async (req, res) => {
+// Medical record report endpoint (with joins)
+router.get('/report/:patientID', async (req, res) => {
+  const { patientID } = req.params;
   try {
     const pool = await poolPromise;
-
-    const result = await pool
-      .request()
-      .input("patientId", req.params.patientId)
+    const result = await pool.request()
+      .input('patientID', patientID)
       .query(`
-        SELECT *
-        FROM MedicalRecords
-        WHERE PatientID = @patientId
-        ORDER BY CreationDate DESC
+        SELECT TOP 1
+          mr.MedicalRecordID,
+          mr.PatientID,
+          CONCAT(u.FirstName, ' ', u.MiddleName, ' ', u.LastName) AS PatientFullName,
+          p.BirthDate,
+          p.HomeAddress AS PatientAddress,
+          p.Sex,
+          p.Age,
+          p.CollegeOffice AS College,
+          u.PhoneNumber AS ContactNumber,
+          cp.ContactPersonName AS EmContactPerson,
+          cp.ContactPersonContactNo AS EmContactNumber,
+          mr.VisitDate,
+          mr.BloodPressure,
+          mr.CardiacRate,
+          mr.RespiratoryRate,
+          mr.Temperature,
+          mr.OxygenSaturation,
+          mr.ChiefComplaint,
+          mr.HistoryOfPresentIllness,
+          mr.DateInitiallySeen,
+          mr.GeneralAppearance,
+          mr.Skin,
+          mr.HeadNeck,
+          mr.ChestCardiovascular,
+          mr.Abdomen,
+          mr.Genitourinary,
+          mr.Neurologic,
+          mr.Diagnosis,
+          mr.ManagementPlan,
+          mr.CreationDate,
+          ob.MenarcheAge,
+          ob.MenstrualInterval,
+          ob.MenstrualDuration,
+          ob.MenstrualAmount,
+          ob.MenstrualSymptoms,
+          ob.LastMenstrualPeriod,
+          past.HasAsthma,
+          past.HasDiabetes,
+          past.HasHypertension,
+          past.HasHeartDisease,
+          past.HasKidneyDisease,
+          family.FamilyAsthma,
+          family.FamilyDiabetes,
+          family.FamilyHypertension,
+          family.FamilyHeartDisease,
+          family.FamilyKidneyDisease,
+          review.Fever,
+          review.Headache,
+          review.Dizziness,
+          review.BlurredVision,
+          review.ChestPain,
+          review.ShortnessOfBreath,
+          review.Cough,
+          review.Colds,
+          review.AbdominalPain,
+          review.Diarrhea,
+          review.Dysuria,
+          review.Rashes,
+          review.Seizures,
+          review.Depression,
+          review.EasyFatigue,
+          review.AllergyNotes,
+          review.BadHabit
+        FROM MedicalRecords mr
+        LEFT JOIN OBHistory ob ON mr.MedicalRecordID = ob.MedicalRecordID
+        LEFT JOIN PastMedicalHistory past ON mr.MedicalRecordID = past.MedicalRecordID
+        LEFT JOIN FamilyHistory family ON mr.MedicalRecordID = family.MedicalRecordID
+        LEFT JOIN ReviewOfSystems review ON mr.MedicalRecordID = review.MedicalRecordID
+        LEFT JOIN Patient p ON mr.PatientID = p.PatientID
+        LEFT JOIN [User] u ON p.UserID = u.UserID
+        LEFT JOIN ContactPerson cp ON p.UserID = cp.UserID
+        WHERE mr.PatientID = @patientID
+        ORDER BY mr.VisitDate DESC
       `);
-
-    res.json(result.recordset);
+    if (result.recordset.length === 0) {
+      return res.status(404).json({ message: 'No medical record found.' });
+    }
+    res.json(result.recordset[0]);
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    console.error(err);
+    res.status(500).json({ message: 'Server error.' });
   }
 });
 
-// ✅ Summary for tiles: return key fields suitable for UI preview
-router.get('/summary/patient/:patientId', async (req, res) => {
-  try {
-    const pool = await poolPromise;
-
-    const result = await pool
-      .request()
-      .input('patientId', req.params.patientId)
-      .query(`
-        SELECT MedicalRecordID, PatientID, ChiefComplaint, Diagnosis, ManagementPlan, CreationDate
-        FROM MedicalRecords
-        WHERE PatientID = @patientId
-        ORDER BY CreationDate DESC
-      `);
-
-    res.json(result.recordset);
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-// ✅ Add record
+// Add record (MedicalRecords only)
 router.post("/", async (req, res) => {
   try {
     const pool = await poolPromise;
     const r = req.body;
-
-    // Validate required fields
     if (!r.PatientID) {
       return res.status(400).json({ success: false, message: "PatientID is required" });
     }
-
     await pool.request()
       .input("PatientID", r.PatientID)
       .input("VisitDate", r.VisitDate || null)
@@ -114,17 +146,109 @@ router.post("/", async (req, res) => {
       .input("DateInitiallySeen", r.DateInitiallySeen || null)
       .input("ChiefComplaint", r.ChiefComplaint || null)
       .input("HistoryOfPresentIllness", r.HistoryOfPresentIllness || null)
-      .query(`
-        INSERT INTO MedicalRecords
-          (PatientID, VisitDate, BloodPressure, CardiacRate, RespiratoryRate, Temperature, OxygenSaturation, GeneralAppearance, Skin, HeadNeck, ChestCardiovascular, Abdomen, Genitourinary, Neurologic, Diagnosis, ManagementPlan, DateInitiallySeen, ChiefComplaint, HistoryOfPresentIllness, CreationDate)
-        VALUES
-          (@PatientID, @VisitDate, @BloodPressure, @CardiacRate, @RespiratoryRate, @Temperature, @OxygenSaturation, @GeneralAppearance, @Skin, @HeadNeck, @ChestCardiovascular, @Abdomen, @Genitourinary, @Neurologic, @Diagnosis, @ManagementPlan, @DateInitiallySeen, @ChiefComplaint, @HistoryOfPresentIllness, GETDATE())
-      `);
-
+      .query('INSERT INTO MedicalRecords (PatientID, VisitDate, BloodPressure, CardiacRate, RespiratoryRate, Temperature, OxygenSaturation, GeneralAppearance, Skin, HeadNeck, ChestCardiovascular, Abdomen, Genitourinary, Neurologic, Diagnosis, ManagementPlan, DateInitiallySeen, ChiefComplaint, HistoryOfPresentIllness, CreationDate) VALUES (@PatientID, @VisitDate, @BloodPressure, @CardiacRate, @RespiratoryRate, @Temperature, @OxygenSaturation, @GeneralAppearance, @Skin, @HeadNeck, @ChestCardiovascular, @Abdomen, @Genitourinary, @Neurologic, @Diagnosis, @ManagementPlan, @DateInitiallySeen, @ChiefComplaint, @HistoryOfPresentIllness, GETDATE())');
     res.json({ success: true, message: "Medical record created successfully" });
   } catch (err) {
     console.error("AddMedicalRecord Exception:", err);
-    res.status(500).json({ success: false, message: `AddMedicalRecord Exception: ${err.message}` });
+    res.status(500).json({ success: false, message: 'AddMedicalRecord Exception: ' + err.message });
+  }
+});
+
+// Add record and all sub-entities
+router.post("/full", async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const r = req.body;
+    try { console.log('[medicalrecords/full] POST body:', JSON.stringify(r)); } catch (e) { console.log('[medicalrecords/full] POST body (stringify failed)'); }
+    const insertResult = await pool.request()
+      .input("PatientID", r.PatientID)
+      .input("ChiefComplaint", r.ChiefComplaint)
+      .input("HistoryofPresentIllness", r.HistoryofPresentIllness || r.HistoryOfPresentIllness)
+      .input("Constitutional", r.Constitutional)
+      .input("HEENT", r.HEENT)
+      .input("Cardiovascular", r.Cardiovascular)
+      .input("Respiratory", r.Respiratory)
+      .input("Gastrointestinal", r.Gastrointestinal)
+      .input("Genitourinary", r.Genitourinary)
+      .input("Musculoskeletal", r.Musculoskeletal)
+      .input("Skin", r.Skin)
+      .input("Psychiatric", r.Psychiatric)
+      .input("EndocrineHematologic", r.EndocrineHematologic)
+      .input("AllergicImmunologic", r.AllergicImmunologic)
+      .input("DiagnosisAssessment", r.DiagnosisAssessment)
+      .input("PlanManagement", r.PlanManagement)
+      .input("PastMedicalandMedicationHistory", typeof r.PastMedicalandMedicationHistory === 'string' ? r.PastMedicalandMedicationHistory : null)
+      .input("ObstetricandGynecologicHistory", typeof r.ObstetricandGynecologicHistory === 'string' ? r.ObstetricandGynecologicHistory : null)
+      .input("FamilyHistory", typeof r.FamilyHistory === 'string' ? r.FamilyHistory : null)
+      .query('INSERT INTO MedicalRecords (PatientID, ChiefComplaint, HistoryofPresentIllness, Constitutional, HEENT, Cardiovascular, Respiratory, Gastrointestinal, Genitourinary, Musculoskeletal, Skin, Psychiatric, EndocrineHematologic, AllergicImmunologic, DiagnosisAssessment, PlanManagement, PastMedicalandMedicationHistory, ObstetricandGynecologicHistory, FamilyHistory) OUTPUT INSERTED.MedicalRecordsId VALUES (@PatientID, @ChiefComplaint, @HistoryofPresentIllness, @Constitutional, @HEENT, @Cardiovascular, @Respiratory, @Gastrointestinal, @Genitourinary, @Musculoskeletal, @Skin, @Psychiatric, @EndocrineHematologic, @AllergicImmunologic, @DiagnosisAssessment, @PlanManagement, @PastMedicalandMedicationHistory, @ObstetricandGynecologicHistory, @FamilyHistory)');
+    const newId = insertResult.recordset && insertResult.recordset[0] ? insertResult.recordset[0].MedicalRecordsId : null;
+    const insertLog = { ob: false, past: false, family: false, review: false };
+    if (newId) {
+      // OB History
+      const ob = r.obHistory || r.OBHistory || r.obstetricAndGynecologicHistory || r.ObstetricandGynecologicHistory;
+      const obData = (ob && typeof ob === 'object') ? ob : {};
+      await pool.request()
+        .input('MedicalRecordID', newId)
+        .input('MenarcheAge', obData.MenarcheAge || null)
+        .input('MenstrualInterval', obData.MenstrualInterval || null)
+        .input('MenstrualDuration', obData.MenstrualDuration || null)
+        .input('MenstrualAmount', obData.MenstrualAmount || null)
+        .input('MenstrualSymptoms', obData.MenstrualSymptoms || null)
+        .input('LastMenstrualPeriod', obData.LastMenstrualPeriod || null)
+        .query('INSERT INTO OBHistory (MedicalRecordID, MenarcheAge, MenstrualInterval, MenstrualDuration, MenstrualAmount, MenstrualSymptoms, LastMenstrualPeriod) VALUES (@MedicalRecordID, @MenarcheAge, @MenstrualInterval, @MenstrualDuration, @MenstrualAmount, @MenstrualSymptoms, @LastMenstrualPeriod)');
+      insertLog.ob = true;
+      // Past Medical History
+      const past = r.pastHistory || r.PastHistory || r.PastMedicalandMedicationHistory || r.pastMedical;
+      const pastData = (past && typeof past === 'object') ? past : {};
+      await pool.request()
+        .input('MedicalRecordID', newId)
+        .input('HasAsthma', pastData.HasAsthma ? 1 : 0)
+        .input('HasDiabetes', pastData.HasDiabetes ? 1 : 0)
+        .input('HasHypertension', pastData.HasHypertension ? 1 : 0)
+        .input('HasHeartDisease', pastData.HasHeartDisease ? 1 : 0)
+        .input('HasKidneyDisease', pastData.HasKidneyDisease ? 1 : 0)
+        .query('INSERT INTO PastMedicalHistory (MedicalRecordID, HasAsthma, HasDiabetes, HasHypertension, HasHeartDisease, HasKidneyDisease) VALUES (@MedicalRecordID, @HasAsthma, @HasDiabetes, @HasHypertension, @HasHeartDisease, @HasKidneyDisease)');
+      insertLog.past = true;
+      // Family History
+      const fam = r.familyHistory || r.FamilyHistory || r.family;
+      const famData = (fam && typeof fam === 'object') ? fam : {};
+      await pool.request()
+        .input('MedicalRecordID', newId)
+        .input('FamilyAsthma', famData.FamilyAsthma ? 1 : 0)
+        .input('FamilyDiabetes', famData.FamilyDiabetes ? 1 : 0)
+        .input('FamilyHypertension', famData.FamilyHypertension ? 1 : 0)
+        .input('FamilyHeartDisease', famData.FamilyHeartDisease ? 1 : 0)
+        .input('FamilyKidneyDisease', famData.FamilyKidneyDisease ? 1 : 0)
+        .query('INSERT INTO FamilyHistory (MedicalRecordID, FamilyAsthma, FamilyDiabetes, FamilyHypertension, FamilyHeartDisease, FamilyKidneyDisease) VALUES (@MedicalRecordID, @FamilyAsthma, @FamilyDiabetes, @FamilyHypertension, @FamilyHeartDisease, @FamilyKidneyDisease)');
+      insertLog.family = true;
+      // Review Of Systems
+      const review = r.review || r.Review || r.reviewOfSystems || r.ReviewOfSystems;
+      const reviewData = (review && typeof review === 'object') ? review : {};
+      await pool.request()
+        .input('MedicalRecordID', newId)
+        .input('Fever', reviewData.Fever ? 1 : 0)
+        .input('Headache', reviewData.Headache ? 1 : 0)
+        .input('Dizziness', reviewData.Dizziness ? 1 : 0)
+        .input('BlurredVision', reviewData.BlurredVision ? 1 : 0)
+        .input('ChestPain', reviewData.ChestPain ? 1 : 0)
+        .input('ShortnessOfBreath', reviewData.ShortnessOfBreath ? 1 : 0)
+        .input('Cough', reviewData.Cough ? 1 : 0)
+        .input('Colds', reviewData.Colds ? 1 : 0)
+        .input('AbdominalPain', reviewData.AbdominalPain ? 1 : 0)
+        .input('Diarrhea', reviewData.Diarrhea ? 1 : 0)
+        .input('Dysuria', reviewData.Dysuria ? 1 : 0)
+        .input('Rashes', reviewData.Rashes ? 1 : 0)
+        .input('Seizures', reviewData.Seizures ? 1 : 0)
+        .input('Depression', reviewData.Depression ? 1 : 0)
+        .input('EasyFatigue', reviewData.EasyFatigue ? 1 : 0)
+        .input('AllergyNotes', reviewData.AllergyNotes || null)
+        .input('BadHabit', reviewData.BadHabit || null)
+        .query('INSERT INTO ReviewOfSystems (MedicalRecordID, Fever, Headache, Dizziness, BlurredVision, ChestPain, ShortnessOfBreath, Cough, Colds, AbdominalPain, Diarrhea, Dysuria, Rashes, Seizures, Depression, EasyFatigue, AllergyNotes, BadHabit) VALUES (@MedicalRecordID, @Fever, @Headache, @Dizziness, @BlurredVision, @ChestPain, @ShortnessOfBreath, @Cough, @Colds, @AbdominalPain, @Diarrhea, @Dysuria, @Rashes, @Seizures, @Depression, @EasyFatigue, @AllergyNotes, @BadHabit)');
+      insertLog.review = true;
+    }
+    res.json({ success: true, medicalRecordId: newId, inserts: insertLog });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 });
 
@@ -133,7 +257,6 @@ router.put("/:id", async (req, res) => {
   try {
     const pool = await poolPromise;
     const r = req.body;
-
     await pool.request()
       .input("id", req.params.id)
       .input("VisitDate", r.VisitDate || null)
@@ -154,34 +277,11 @@ router.put("/:id", async (req, res) => {
       .input("DateInitiallySeen", r.DateInitiallySeen || null)
       .input("ChiefComplaint", r.ChiefComplaint || null)
       .input("HistoryOfPresentIllness", r.HistoryOfPresentIllness || null)
-      .query(`
-        UPDATE MedicalRecords
-        SET
-          VisitDate = @VisitDate,
-          BloodPressure = @BloodPressure,
-          CardiacRate = @CardiacRate,
-          RespiratoryRate = @RespiratoryRate,
-          Temperature = @Temperature,
-          OxygenSaturation = @OxygenSaturation,
-          GeneralAppearance = @GeneralAppearance,
-          Skin = @Skin,
-          HeadNeck = @HeadNeck,
-          ChestCardiovascular = @ChestCardiovascular,
-          Abdomen = @Abdomen,
-          Genitourinary = @Genitourinary,
-          Neurologic = @Neurologic,
-          Diagnosis = @Diagnosis,
-          ManagementPlan = @ManagementPlan,
-          DateInitiallySeen = @DateInitiallySeen,
-          ChiefComplaint = @ChiefComplaint,
-          HistoryOfPresentIllness = @HistoryOfPresentIllness
-        WHERE MedicalRecordID = @id
-      `);
-
+      .query('UPDATE MedicalRecords SET VisitDate = @VisitDate, BloodPressure = @BloodPressure, CardiacRate = @CardiacRate, RespiratoryRate = @RespiratoryRate, Temperature = @Temperature, OxygenSaturation = @OxygenSaturation, GeneralAppearance = @GeneralAppearance, Skin = @Skin, HeadNeck = @HeadNeck, ChestCardiovascular = @ChestCardiovascular, Abdomen = @Abdomen, Genitourinary = @Genitourinary, Neurologic = @Neurologic, Diagnosis = @Diagnosis, ManagementPlan = @ManagementPlan, DateInitiallySeen = @DateInitiallySeen, ChiefComplaint = @ChiefComplaint, HistoryOfPresentIllness = @HistoryOfPresentIllness WHERE MedicalRecordID = @id');
     res.json({ success: true, message: "Medical record updated successfully" });
   } catch (err) {
     console.error("UpdateMedicalRecord Exception:", err);
-    res.status(500).json({ success: false, message: `UpdateMedicalRecord Exception: ${err.message}` });
+    res.status(500).json({ success: false, message: 'UpdateMedicalRecord Exception: ' + err.message });
   }
 });
 
@@ -191,15 +291,11 @@ router.delete("/:id", async (req, res) => {
     const pool = await poolPromise;
     await pool.request()
       .input("id", req.params.id)
-      .query(`
-        DELETE FROM MedicalRecords
-        WHERE MedicalRecordID = @id
-      `);
-
+      .query('DELETE FROM MedicalRecords WHERE MedicalRecordID = @id');
     res.json({ success: true, message: "Medical record deleted successfully" });
   } catch (err) {
     console.error("DeleteMedicalRecord Exception:", err);
-    res.status(500).json({ success: false, message: `DeleteMedicalRecord Exception: ${err.message}` });
+    res.status(500).json({ success: false, message: 'DeleteMedicalRecord Exception: ' + err.message });
   }
 });
 

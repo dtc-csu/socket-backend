@@ -7,6 +7,138 @@ const generic = require('../Controllers/genericController')(poolPromise);
 // ----------------------------------------------------
 // GET ALL PATIENTS WITH ENRICHED USER DATA
 // ----------------------------------------------------
+// Medical record grid endpoint
+router.get('/medical-records/grid', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().query(`
+      SELECT
+        mr.MedicalRecordID,
+        mr.VisitDate,
+        mr.BloodPressure,
+        mr.GeneralAppearance,
+        mr.Diagnosis,
+        mr.ChiefComplaint,
+        p.PatientID,
+        p.CollegeOffice,
+        u.FirstName + ' ' + u.MiddleName + ' ' + u.LastName AS PatientFullName
+      FROM MedicalRecords mr
+      INNER JOIN Patient p ON mr.PatientID = p.PatientID
+      INNER JOIN Users u ON p.UserID = u.UserID
+      ORDER BY mr.VisitDate DESC
+    `);
+    res.json(result.recordset);
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Medical record report endpoint
+router.get('/medical-records/report/:patientId', async (req, res) => {
+  const patientId = req.params.patientId;
+  try {
+    const pool = await poolPromise;
+    // Get latest medical record for patient
+    const recordResult = await pool.request()
+      .input('patientId', patientId)
+      .query(`SELECT TOP 1 * FROM MedicalRecords WHERE PatientID = @patientId ORDER BY VisitDate DESC`);
+    const record = recordResult.recordset[0];
+    if (!record) return res.json(null);
+    const medicalRecordID = record.MedicalRecordID;
+
+    // Related medical tables
+    const ob = await pool.request().input('medicalRecordID', medicalRecordID).query(`SELECT TOP 1 * FROM OBHistory WHERE MedicalRecordID = @medicalRecordID`);
+    const past = await pool.request().input('medicalRecordID', medicalRecordID).query(`SELECT TOP 1 * FROM PastMedicalHistory WHERE MedicalRecordID = @medicalRecordID`);
+    const family = await pool.request().input('medicalRecordID', medicalRecordID).query(`SELECT TOP 1 * FROM FamilyHistory WHERE MedicalRecordID = @medicalRecordID`);
+    const review = await pool.request().input('medicalRecordID', medicalRecordID).query(`SELECT TOP 1 * FROM ReviewOfSystem WHERE MedicalRecordID = @medicalRecordID`);
+
+    // Patient Table
+    const patientResult = await pool.request().input('patientId', patientId).query(`SELECT * FROM Patient WHERE PatientID = @patientId`);
+    const patient = patientResult.recordset[0];
+
+    // Patient User (Name Source)
+    let patientUser = null;
+    if (patient && patient.UserID) {
+      const userResult = await pool.request().input('userId', patient.UserID).query(`SELECT * FROM Users WHERE UserID = @userId`);
+      patientUser = userResult.recordset[0];
+    }
+    let patientcontact = null;
+    if (patient && patient.UserID) {
+      const contactResult = await pool.request().input('userId', patient.UserID).query(`SELECT TOP 1 * FROM ContactPerson WHERE UserID = @userId`);
+      patientcontact = contactResult.recordset[0];
+    }
+
+    // Build report model
+    const report = {
+      MedicalRecordID: record.MedicalRecordID,
+      PatientID: record.PatientID,
+      PatientFullName: patientUser ? `${patientUser.FirstName} ${patientUser.MiddleName} ${patientUser.LastName}` : '',
+      BirthDate: patient?.BirthDate,
+      PatientAddress: patient?.HomeAddress,
+      Sex: patient?.Sex,
+      Age: patient?.Age ?? 0,
+      College: patient?.CollegeOffice,
+      ContactNumber: patientUser?.PhoneNumber,
+      EmContactPerson: patientcontact?.ContactPersonName,
+      EmContactNumber: patientcontact?.ContactPersonContactNo,
+      VisitDate: record.VisitDate,
+      BloodPressure: record.BloodPressure,
+      CardiacRate: record.CardiacRate,
+      RespiratoryRate: record.RespiratoryRate,
+      Temperature: record.Temperature,
+      OxygenSaturation: record.OxygenSaturation,
+      ChiefComplaint: record.ChiefComplaint,
+      HistoryOfPresentIllness: record.HistoryOfPresentIllness,
+      DateInitiallySeen: record.DateInitiallySeen,
+      GeneralAppearance: record.GeneralAppearance,
+      Skin: record.Skin,
+      HeadNeck: record.HeadNeck,
+      ChestCardiovascular: record.ChestCardiovascular,
+      Abdomen: record.Abdomen,
+      Genitourinary: record.Genitourinary,
+      Neurologic: record.Neurologic,
+      Diagnosis: record.Diagnosis,
+      ManagementPlan: record.ManagementPlan,
+      CreationDate: record.CreationDate,
+      MenarcheAge: ob.recordset[0]?.MenarcheAge,
+      MenstrualInterval: ob.recordset[0]?.MenstrualInterval,
+      MenstrualDuration: ob.recordset[0]?.MenstrualDuration,
+      MenstrualAmount: ob.recordset[0]?.MenstrualAmount,
+      MenstrualSymptoms: ob.recordset[0]?.MenstrualSymptoms,
+      LastMenstrualPeriod: ob.recordset[0]?.LastMenstrualPeriod,
+      HasAsthma: past.recordset[0]?.HasAsthma,
+      HasDiabetes: past.recordset[0]?.HasDiabetes,
+      HasHypertension: past.recordset[0]?.HasHypertension,
+      HasHeartDisease: past.recordset[0]?.HasHeartDisease,
+      HasKidneyDisease: past.recordset[0]?.HasKidneyDisease,
+      FamilyAsthma: family.recordset[0]?.FamilyAsthma,
+      FamilyDiabetes: family.recordset[0]?.FamilyDiabetes,
+      FamilyHypertension: family.recordset[0]?.FamilyHypertension,
+      FamilyHeartDisease: family.recordset[0]?.FamilyHeartDisease,
+      FamilyKidneyDisease: family.recordset[0]?.FamilyKidneyDisease,
+      Fever: review.recordset[0]?.Fever,
+      Headache: review.recordset[0]?.Headache,
+      Dizziness: review.recordset[0]?.Dizziness,
+      BlurredVision: review.recordset[0]?.BlurredVision,
+      ChestPain: review.recordset[0]?.ChestPain,
+      ShortnessOfBreath: review.recordset[0]?.ShortnessOfBreath,
+      Cough: review.recordset[0]?.Cough,
+      Colds: review.recordset[0]?.Colds,
+      AbdominalPain: review.recordset[0]?.AbdominalPain,
+      Diarrhea: review.recordset[0]?.Diarrhea,
+      Dysuria: review.recordset[0]?.Dysuria,
+      Rashes: review.recordset[0]?.Rashes,
+      Seizures: review.recordset[0]?.Seizures,
+      Depression: review.recordset[0]?.Depression,
+      EasyFatigue: review.recordset[0]?.EasyFatigue,
+      AllergyNotes: review.recordset[0]?.AllergyNotes,
+      BadHabit: review.recordset[0]?.BadHabit
+    };
+    res.json(report);
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 router.get('/', async (req, res) => {
   try {
     const pool = await poolPromise;

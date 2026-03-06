@@ -103,6 +103,9 @@ app.use("/FollowUps", require("./Routes/followups"));
 app.use("/Referrals", require("./Routes/referrals"));
 app.use("/patients", require("./Routes/patients"));
 app.use("/Doctors", require("./Routes/doctors"));
+
+// New route for prescription requests
+app.use("/prescription-requests", require("./Routes/prescription_requests"));
 app.use("/ContactPerson", require("./Routes/contactperson"));
 app.use("/FamilyInfo", require("./Routes/familyinfo"));
 app.use("/Dental", require("./Routes/dental"));
@@ -112,7 +115,6 @@ app.use("/AccountLogs", require("./Routes/accountLogs"));
 app.use("/FamilyHistory", require("./Routes/familyhistory"));
 app.use("/LabTests", require("./Routes/labtests"));
 app.use("/MedicalCheckup", require("./Routes/medicalcheckup"));
-app.use("/MedicalHistory", require("./Routes/medicalhistory"));
 app.use("/OBHistory", require("./Routes/obhistory"));
 app.use("/PastMedicalHistory", require("./Routes/pastmedicalhistory"));
 app.use("/PatientConsent", require("./Routes/patientconsent"));
