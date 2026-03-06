@@ -207,7 +207,6 @@ router.get('/date/:date/withpatient', async (req, res) => {
           a.ChiefComplaint,
           CONVERT(varchar(126), a.CreatedAt, 126) AS CreatedAt,
           ISNULL(u.FirstName,'') + ' ' + ISNULL(u.LastName,'') AS PatientFullName,
-          u.MobileNumber
         FROM Appointments a
         LEFT JOIN Patient p ON a.PatientID = p.PatientID
         LEFT JOIN Users u ON p.UserID = u.UserID
