@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
-const admin = require("./firebase");
+const firebaseRouter = require("./firebase");
+const admin = firebaseRouter.admin;
 const redis = require("../redis");
 
 
