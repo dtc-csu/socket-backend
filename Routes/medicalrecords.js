@@ -5,10 +5,11 @@ const poolPromise = require("../db");
 // ✅ Get all records
 router.get("/", async (req, res) => {
   try {
-// Ensure router is exported for Express
-module.exports = router;
+    const pool = await poolPromise;
+    const result = await pool.request().query('SELECT * FROM MedicalRecords ORDER BY CreationDate DESC');
     res.json(result.recordset);
   } catch (err) {
+    console.error("GetAllMedicalRecords Exception:", err);
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -21,6 +22,7 @@ router.get('/grid-joined', async (req, res) => {
     const result = await pool.request().query('SELECT * FROM MedicalRecords ORDER BY CreationDate DESC');
     res.json(result.recordset);
   } catch (err) {
+    console.error('GridJoined Exception:', err);
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -34,69 +36,69 @@ router.get('/report/:patientID', async (req, res) => {
       .input('patientID', patientID)
       .query(`
         SELECT TOP 1
-          mr.MedicalRecordID,
-          mr.PatientID,
+          mr.MedicalRecordID AS MedicalRecordID,
+          mr.PatientID AS PatientID,
           CONCAT(u.FirstName, ' ', u.MiddleName, ' ', u.LastName) AS PatientFullName,
-          p.BirthDate,
+          p.BirthDate AS BirthDate,
           p.HomeAddress AS PatientAddress,
-          p.Sex,
-          p.Age,
+          p.Sex AS Sex,
+          p.Age AS Age,
           p.CollegeOffice AS College,
           u.PhoneNumber AS ContactNumber,
           cp.ContactPersonName AS EmContactPerson,
           cp.ContactPersonContactNo AS EmContactNumber,
-          mr.VisitDate,
-          mr.BloodPressure,
-          mr.CardiacRate,
-          mr.RespiratoryRate,
-          mr.Temperature,
-          mr.OxygenSaturation,
-          mr.ChiefComplaint,
-          mr.HistoryOfPresentIllness,
-          mr.DateInitiallySeen,
-          mr.GeneralAppearance,
-          mr.Skin,
-          mr.HeadNeck,
-          mr.ChestCardiovascular,
-          mr.Abdomen,
-          mr.Genitourinary,
-          mr.Neurologic,
-          mr.Diagnosis,
-          mr.ManagementPlan,
-          mr.CreationDate,
-          ob.MenarcheAge,
-          ob.MenstrualInterval,
-          ob.MenstrualDuration,
-          ob.MenstrualAmount,
-          ob.MenstrualSymptoms,
-          ob.LastMenstrualPeriod,
-          past.HasAsthma,
-          past.HasDiabetes,
-          past.HasHypertension,
-          past.HasHeartDisease,
-          past.HasKidneyDisease,
-          family.FamilyAsthma,
-          family.FamilyDiabetes,
-          family.FamilyHypertension,
-          family.FamilyHeartDisease,
-          family.FamilyKidneyDisease,
-          review.Fever,
-          review.Headache,
-          review.Dizziness,
-          review.BlurredVision,
-          review.ChestPain,
-          review.ShortnessOfBreath,
-          review.Cough,
-          review.Colds,
-          review.AbdominalPain,
-          review.Diarrhea,
-          review.Dysuria,
-          review.Rashes,
-          review.Seizures,
-          review.Depression,
-          review.EasyFatigue,
-          review.AllergyNotes,
-          review.BadHabit
+          mr.VisitDate AS VisitDate,
+          mr.BloodPressure AS BloodPressure,
+          mr.CardiacRate AS CardiacRate,
+          mr.RespiratoryRate AS RespiratoryRate,
+          mr.Temperature AS Temperature,
+          mr.OxygenSaturation AS OxygenSaturation,
+          mr.ChiefComplaint AS ChiefComplaint,
+          mr.HistoryOfPresentIllness AS HistoryOfPresentIllness,
+          mr.DateInitiallySeen AS DateInitiallySeen,
+          mr.GeneralAppearance AS GeneralAppearance,
+          mr.Skin AS Skin,
+          mr.HeadNeck AS HeadNeck,
+          mr.ChestCardiovascular AS ChestCardiovascular,
+          mr.Abdomen AS Abdomen,
+          mr.Genitourinary AS Genitourinary,
+          mr.Neurologic AS Neurologic,
+          mr.Diagnosis AS Diagnosis,
+          mr.ManagementPlan AS ManagementPlan,
+          mr.CreationDate AS CreationDate,
+          ob.MenarcheAge AS MenarcheAge,
+          ob.MenstrualInterval AS MenstrualInterval,
+          ob.MenstrualDuration AS MenstrualDuration,
+          ob.MenstrualAmount AS MenstrualAmount,
+          ob.MenstrualSymptoms AS MenstrualSymptoms,
+          ob.LastMenstrualPeriod AS LastMenstrualPeriod,
+          past.HasAsthma AS HasAsthma,
+          past.HasDiabetes AS HasDiabetes,
+          past.HasHypertension AS HasHypertension,
+          past.HasHeartDisease AS HasHeartDisease,
+          past.HasKidneyDisease AS HasKidneyDisease,
+          family.FamilyAsthma AS FamilyAsthma,
+          family.FamilyDiabetes AS FamilyDiabetes,
+          family.FamilyHypertension AS FamilyHypertension,
+          family.FamilyHeartDisease AS FamilyHeartDisease,
+          family.FamilyKidneyDisease AS FamilyKidneyDisease,
+          review.Fever AS Fever,
+          review.Headache AS Headache,
+          review.Dizziness AS Dizziness,
+          review.BlurredVision AS BlurredVision,
+          review.ChestPain AS ChestPain,
+          review.ShortnessOfBreath AS ShortnessOfBreath,
+          review.Cough AS Cough,
+          review.Colds AS Colds,
+          review.AbdominalPain AS AbdominalPain,
+          review.Diarrhea AS Diarrhea,
+          review.Dysuria AS Dysuria,
+          review.Rashes AS Rashes,
+          review.Seizures AS Seizures,
+          review.Depression AS Depression,
+          review.EasyFatigue AS EasyFatigue,
+          review.AllergyNotes AS AllergyNotes,
+          review.BadHabit AS BadHabit
         FROM MedicalRecords mr
         LEFT JOIN OBHistory ob ON mr.MedicalRecordID = ob.MedicalRecordID
         LEFT JOIN PastMedicalHistory past ON mr.MedicalRecordID = past.MedicalRecordID
@@ -113,10 +115,13 @@ router.get('/report/:patientID', async (req, res) => {
     }
     res.json(result.recordset[0]);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error.' });
+    console.error('MedicalRecordReport Exception:', err);
+    res.status(500).json({ success: false, message: err.message });
   }
 });
+
+// Export router
+module.exports = router;
 
 // Add record (MedicalRecords only)
 router.post("/", async (req, res) => {

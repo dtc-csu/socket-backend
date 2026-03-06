@@ -95,10 +95,14 @@ app.get("/", (req, res) => {
 // Helper to safely require and mount route modules
 function safeMount(mountPoint, modulePath) {
   try {
-    const mod = require(modulePath);
-    const isRouter = typeof mod === 'function' || (mod && typeof mod === 'object' && (mod.handle || mod.stack));
+    let mod = require(modulePath);
+    // Support common export shapes: router itself, { router }, or default
+    if (mod && mod.router) mod = mod.router;
+    if (mod && mod.default && (mod.default.router || mod.default.use)) mod = mod.default.router || mod.default;
+
+    const isRouter = !!mod && (typeof mod === 'function' || typeof mod.use === 'function' || typeof mod.handle === 'function' || Array.isArray(mod.stack));
     if (!isRouter) {
-      console.error(`Invalid route module at ${modulePath} — mounting error handler instead.`);
+      console.error(`Invalid route module at ${modulePath} — export shape:`, Object.keys(mod || {}));
       const errRouter = express.Router();
       errRouter.use((req, res) => res.status(500).json({ success: false, message: `Invalid route module: ${modulePath}` }));
       app.use(mountPoint, errRouter);
@@ -106,7 +110,7 @@ function safeMount(mountPoint, modulePath) {
     }
     app.use(mountPoint, mod);
   } catch (e) {
-    console.error(`Failed to load route ${modulePath}:`, e && e.message ? e.message : e);
+    console.error(`Failed to load route ${modulePath}:`, e && e.stack ? e.stack : e);
     const errRouter = express.Router();
     errRouter.use((req, res) => res.status(500).json({ success: false, message: `Failed to load route: ${modulePath}` }));
     app.use(mountPoint, errRouter);
