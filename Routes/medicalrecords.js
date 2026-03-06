@@ -2,6 +2,13 @@ const express = require("express");
 const router = express.Router();
 const poolPromise = require("../db");
 
+// Helper: convert input to JS Date or null (prevents SQL conversion errors)
+function parseDateOrNull(value) {
+  if (value === undefined || value === null || value === "") return null;
+  const d = new Date(value);
+  return isNaN(d.getTime()) ? null : d;
+}
+
 // ✅ Get all records
 router.get("/", async (req, res) => {
   try {
@@ -38,7 +45,7 @@ router.post("/", async (req, res) => {
     }
     await pool.request()
       .input("PatientID", r.PatientID)
-      .input("VisitDate", r.VisitDate || null)
+      .input("VisitDate", parseDateOrNull(r.VisitDate))
       .input("BloodPressure", r.BloodPressure || null)
       .input("CardiacRate", r.CardiacRate || null)
       .input("RespiratoryRate", r.RespiratoryRate || null)
@@ -53,7 +60,7 @@ router.post("/", async (req, res) => {
       .input("Neurologic", r.Neurologic || null)
       .input("Diagnosis", r.Diagnosis || null)
       .input("ManagementPlan", r.ManagementPlan || null)
-      .input("DateInitiallySeen", r.DateInitiallySeen || null)
+      .input("DateInitiallySeen", parseDateOrNull(r.DateInitiallySeen))
       .input("ChiefComplaint", r.ChiefComplaint || null)
       .input("HistoryOfPresentIllness", r.HistoryOfPresentIllness || null)
       .query('INSERT INTO MedicalRecords (PatientID, VisitDate, BloodPressure, CardiacRate, RespiratoryRate, Temperature, OxygenSaturation, GeneralAppearance, Skin, HeadNeck, ChestCardiovascular, Abdomen, Genitourinary, Neurologic, Diagnosis, ManagementPlan, DateInitiallySeen, ChiefComplaint, HistoryOfPresentIllness, CreationDate) VALUES (@PatientID, @VisitDate, @BloodPressure, @CardiacRate, @RespiratoryRate, @Temperature, @OxygenSaturation, @GeneralAppearance, @Skin, @HeadNeck, @ChestCardiovascular, @Abdomen, @Genitourinary, @Neurologic, @Diagnosis, @ManagementPlan, @DateInitiallySeen, @ChiefComplaint, @HistoryOfPresentIllness, GETDATE())');
@@ -72,7 +79,7 @@ router.post("/full", async (req, res) => {
     try { console.log('[medicalrecords/full] POST body:', JSON.stringify(r)); } catch (e) { console.log('[medicalrecords/full] POST body (stringify failed)'); }
     const insertResult = await pool.request()
       .input("PatientID", r.PatientID)
-      .input("VisitDate", r.VisitDate || null)
+      .input("VisitDate", parseDateOrNull(r.VisitDate))
       .input("BloodPressure", r.BloodPressure || null)
       .input("CardiacRate", r.CardiacRate || null)
       .input("RespiratoryRate", r.RespiratoryRate || null)
@@ -104,7 +111,7 @@ router.post("/full", async (req, res) => {
         .input('MenstrualDuration', obData.MenstrualDuration || null)
         .input('MenstrualAmount', obData.MenstrualAmount || null)
         .input('MenstrualSymptoms', obData.MenstrualSymptoms || null)
-        .input('LastMenstrualPeriod', obData.LastMenstrualPeriod || null)
+          .input('LastMenstrualPeriod', parseDateOrNull(obData.LastMenstrualPeriod))
         .query('INSERT INTO OBHistory (MedicalRecordID, MenarcheAge, MenstrualInterval, MenstrualDuration, MenstrualAmount, MenstrualSymptoms, LastMenstrualPeriod) VALUES (@MedicalRecordID, @MenarcheAge, @MenstrualInterval, @MenstrualDuration, @MenstrualAmount, @MenstrualSymptoms, @LastMenstrualPeriod)');
       insertLog.ob = true;
       // Past Medical History
