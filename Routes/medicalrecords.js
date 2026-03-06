@@ -28,7 +28,8 @@ router.get('/grid', async (req, res) => {
     const result = await pool.request().query(`
       SELECT
         mr.MedicalRecordID,
-        mr.VisitDate,
+        -- return ISO 8601 string; if NULL, return empty string so client won't get a bare null/object
+        ISNULL(CONVERT(varchar(33), mr.VisitDate, 126), '') AS VisitDate,
         mr.BloodPressure,
         mr.GeneralAppearance,
         mr.Diagnosis,
@@ -37,21 +38,23 @@ router.get('/grid', async (req, res) => {
         p.PatientID,
         p.CollegeOffice,
 
-        CONCAT(u.FirstName, ' ', u.MiddleName, ' ', u.LastName) AS PatientFullName
+        -- build full name safely even if user parts are NULL
+        ISNULL(CONCAT(ISNULL(u.FirstName,''), ' ', ISNULL(u.MiddleName,''), ' ', ISNULL(u.LastName,'')), '') AS PatientFullName
 
       FROM MedicalRecords mr
       INNER JOIN Patient p ON mr.PatientID = p.PatientID
-      INNER JOIN Users u ON p.UserID = u.UserID
+      -- use LEFT JOIN to avoid losing records when Patient.UserID is null
+      LEFT JOIN Users u ON p.UserID = u.UserID
 
       ORDER BY mr.VisitDate DESC
     `);
+
     res.json(result.recordset);
   } catch (err) {
     console.error('GridJoined Exception:', err);
     res.status(500).json({ success: false, message: err.message });
   }
 });
-  
 
 // Add record (MedicalRecords only)
 router.post("/", async (req, res) => {
@@ -208,7 +211,7 @@ router.get('/report/:patientID', async (req, res) => {
           u.PhoneNumber AS ContactNumber,
           cp.ContactPersonName AS EmContactPerson,
           cp.ContactPersonContactNo AS EmContactNumber,
-          mr.VisitDate AS VisitDate,
+          ISNULL(CONVERT(varchar(33), mr.VisitDate, 126), '') AS VisitDate,
           mr.BloodPressure AS BloodPressure,
           mr.CardiacRate AS CardiacRate,
           mr.RespiratoryRate AS RespiratoryRate,
@@ -232,7 +235,7 @@ router.get('/report/:patientID', async (req, res) => {
           ob.MenstrualDuration AS MenstrualDuration,
           ob.MenstrualAmount AS MenstrualAmount,
           ob.MenstrualSymptoms AS MenstrualSymptoms,
-          ob.LastMenstrualPeriod AS LastMenstrualPeriod,
+          ISNULL(CONVERT(varchar(23), ob.LastMenstrualPeriod, 23), '') AS LastMenstrualPeriod,
           past.HasAsthma AS HasAsthma,
           past.HasDiabetes AS HasDiabetes,
           past.HasHypertension AS HasHypertension,
