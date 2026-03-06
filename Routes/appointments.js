@@ -164,6 +164,64 @@ router.get('/date/:date', async (req, res) => {
   }
 });
 
+// ---------------------- GET appointments (joined with patient name) ----------------------
+router.get('/withpatient', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().query(`
+      SELECT
+        a.AppointmentID,
+        a.PatientID,
+        CONVERT(varchar(126), a.AppointmentDate, 126) AS AppointmentDate,
+        a.Status,
+        a.ChiefComplaint,
+        CONVERT(varchar(126), a.CreatedAt, 126) AS CreatedAt,
+        ISNULL(u.FirstName,'') + ' ' + ISNULL(u.LastName,'') AS PatientFullName,
+        u.MobileNumber
+      FROM Appointments a
+      LEFT JOIN Patient p ON a.PatientID = p.PatientID
+      LEFT JOIN Users u ON p.UserID = u.UserID
+      ORDER BY a.AppointmentDate ASC
+    `);
+
+    res.json(result.recordset);
+  } catch (err) {
+    console.error("Error fetching joined appointments:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ---------------------- GET appointments by date (joined with patient name) ----------------------
+router.get('/date/:date/withpatient', async (req, res) => {
+  const date = req.params.date;
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('date', date)
+      .query(`
+        SELECT
+          a.AppointmentID,
+          a.PatientID,
+          CONVERT(varchar(126), a.AppointmentDate, 126) AS AppointmentDate,
+          a.Status,
+          a.ChiefComplaint,
+          CONVERT(varchar(126), a.CreatedAt, 126) AS CreatedAt,
+          ISNULL(u.FirstName,'') + ' ' + ISNULL(u.LastName,'') AS PatientFullName,
+          u.MobileNumber
+        FROM Appointments a
+        LEFT JOIN Patient p ON a.PatientID = p.PatientID
+        LEFT JOIN Users u ON p.UserID = u.UserID
+        WHERE CONVERT(date, a.AppointmentDate) = CONVERT(date, @date)
+        ORDER BY a.AppointmentDate ASC
+      `);
+
+    res.json(result.recordset);
+  } catch (err) {
+    console.error("Error fetching joined appointments by date:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // ---------------------- GET all active appointments ----------------------
 router.get('/active/list', async (req, res) => {
   try {

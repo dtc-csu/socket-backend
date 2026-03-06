@@ -8,14 +8,18 @@ router.get('/', async (req, res) => {
     const pool = await poolPromise;
     const result = await pool.request().query(`
       SELECT
-        FollowUpID,
-        AppointmentID,
-        PatientID,
-        FollowUpDate,
-        Notes,
-        CreatedAt
-      FROM FollowUps
-      ORDER BY FollowUpDate DESC
+        f.FollowUpID,
+        f.AppointmentID,
+        f.PatientID,
+        CONVERT(varchar(126), f.FollowUpDate, 126) AS FollowUpDate,
+        f.Notes,
+        CONVERT(varchar(126), f.CreatedAt, 126) AS CreatedAt,
+        ISNULL(u.FirstName,'') + ' ' + ISNULL(u.LastName,'') AS PatientFullName,
+        u.MobileNumber
+      FROM FollowUps f
+      LEFT JOIN Patient p ON f.PatientID = p.PatientID
+      LEFT JOIN Users u ON p.UserID = u.UserID
+      ORDER BY f.FollowUpDate DESC
     `);
     res.json(result.recordset);
   } catch (err) {
