@@ -5,8 +5,8 @@ const poolPromise = require("../db");
 // ✅ Get all records
 router.get("/", async (req, res) => {
   try {
-    const pool = await poolPromise;
-    const result = await pool.request().query('SELECT * FROM MedicalRecords ORDER BY CreationDate DESC');
+// Ensure router is exported for Express
+module.exports = router;
     res.json(result.recordset);
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
