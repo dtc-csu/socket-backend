@@ -14,8 +14,7 @@ router.get('/', async (req, res) => {
         CONVERT(varchar(126), f.FollowUpDate, 126) AS FollowUpDate,
         f.Notes,
         CONVERT(varchar(126), f.CreatedAt, 126) AS CreatedAt,
-        ISNULL(u.FirstName,'') + ' ' + ISNULL(u.LastName,'') AS PatientFullName,
-        u.MobileNumber
+        ISNULL(u.FirstName,'') + ' ' + ISNULL(u.LastName,'') AS PatientFullName
       FROM FollowUps f
       LEFT JOIN Patient p ON f.PatientID = p.PatientID
       LEFT JOIN Users u ON p.UserID = u.UserID
