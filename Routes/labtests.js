@@ -39,7 +39,7 @@ router.get('/patient/:patientId', async (req, res) => {
 });
 
 // Lab test grid endpoint (with joins)
-router.get('/grid-joined', async (req, res) => {
+router.get('/grid', async (req, res) => {
   try {
     const pool = await poolPromise;
     const result = await pool.request().query(`
@@ -61,6 +61,7 @@ router.get('/grid-joined', async (req, res) => {
 
       ORDER BY lt.RequestDate DESC
     `);
+
     res.json(result.recordset);
   } catch (err) {
     console.error('LabTests Grid Exception:', err);
