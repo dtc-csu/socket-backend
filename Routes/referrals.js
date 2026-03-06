@@ -46,12 +46,9 @@ router.get('/grid', async (req, res) => {
         CONVERT(varchar(126), r.ReferralDate, 126) AS ReferralDate,
         r.ChiefComplaint,
         r.Impression,
-        r.Reasons,
-        CONVERT(varchar(126), r.CreationDate, 126) AS CreationDate,
         p.UserID AS PatientUserID,
         CONCAT(u.FirstName, ' ', COALESCE(CONCAT(u.MiddleName, ' '), ''), u.LastName) AS PatientFullName,
-        CONCAT(du.FirstName, ' ', COALESCE(CONCAT(du.MiddleName, ' '), ''), du.LastName) AS DoctorName,
-        d.LicenseNumber AS DoctorLicenseNumber
+        CONCAT(du.FirstName, ' ', COALESCE(CONCAT(du.MiddleName, ' '), ''), du.LastName) AS DoctorName
       FROM Referral r
       LEFT JOIN Patient p ON r.PatientID = p.PatientID
       LEFT JOIN Users u ON p.UserID = u.UserID
