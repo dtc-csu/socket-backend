@@ -1,4 +1,7 @@
+
 require("dotenv").config();
+const express = require("express");
+const router = express.Router();
 const admin = require("firebase-admin");
 
 if (!process.env.FIREBASE_ADMIN_JSON) {
@@ -13,4 +16,12 @@ admin.initializeApp({
 
 console.log("✅ Firebase Admin initialized");
 
-module.exports = admin;
+// Example endpoint to verify Firebase connection
+router.get("/status", (req, res) => {
+  res.json({ success: true, message: "Firebase Admin is initialized." });
+});
+
+// Attach admin to router for use in other routes
+router.admin = admin;
+
+module.exports = router;
