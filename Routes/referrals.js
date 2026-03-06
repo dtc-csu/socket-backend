@@ -32,6 +32,40 @@ router.get('/', async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 });
+
+// ============================================================
+// GRID: referrals joined with patient user data (for DGV)
+// ============================================================
+router.get('/grid', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().query(`
+      SELECT
+        r.ReferralID,
+        r.PatientID,
+        CONVERT(varchar(126), r.ReferralDate, 126) AS ReferralDate,
+        r.ChiefComplaint,
+        r.Impression,
+        r.Reasons,
+        CONVERT(varchar(126), r.CreationDate, 126) AS CreationDate,
+        p.UserID AS PatientUserID,
+        CONCAT(u.FirstName, ' ', COALESCE(CONCAT(u.MiddleName, ' '), ''), u.LastName) AS PatientFullName,
+        CONCAT(du.FirstName, ' ', COALESCE(CONCAT(du.MiddleName, ' '), ''), du.LastName) AS DoctorName,
+        d.LicenseNumber AS DoctorLicenseNumber
+      FROM Referral r
+      LEFT JOIN Patient p ON r.PatientID = p.PatientID
+      LEFT JOIN Users u ON p.UserID = u.UserID
+      LEFT JOIN Doctors d ON r.DoctorID = d.DoctorID
+      LEFT JOIN Users du ON d.UserID = du.UserID
+      ORDER BY r.CreationDate DESC
+    `);
+
+    res.json(result.recordset);
+  } catch (err) {
+    console.error('Error fetching referral grid:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 // ============================================================
 // GET REFERRAL REPORTS BY PATIENT ID (for reporting, no follow-up)
 // ============================================================
