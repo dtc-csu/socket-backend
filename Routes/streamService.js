@@ -1,3 +1,6 @@
+
+const express = require("express");
+const router = express.Router();
 const { StreamChat } = require("stream-chat");
 
 const STREAM_API_KEY = process.env.STREAM_API_KEY;
@@ -40,7 +43,16 @@ async function generateToken(user) {
   return streamClient.createToken(userId);
 }
 
-module.exports = {
-  generateToken,
-  STREAM_API_KEY,
-};
+// Route: POST /streamService/token
+router.post("/token", async (req, res) => {
+  try {
+    const user = req.body;
+    const token = await generateToken(user);
+    res.json({ token });
+  } catch (err) {
+    console.error("StreamService Token Exception:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+module.exports = router;
