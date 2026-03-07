@@ -17,6 +17,8 @@ router.get("/", async (req, res) => {
         pr.PrescriptionID,
         pr.CreationDate,
         pr.ServiceType,
+        pr.RequestID,
+        pr.PrintStatus,
 
         p.PatientID,
         u.FirstName + ' ' + u.MiddleName + ' ' + u.LastName AS PatientFullName,
@@ -60,6 +62,8 @@ router.get("/report/:patientID", async (req, res) => {
           pr.CreationDate,
           pr.EndDate,
           pr.ServiceType,
+          pr.RequestID,
+          pr.PrintStatus,
 
           -- Patient Info
           p.PatientID,
@@ -112,6 +116,8 @@ router.get("/report/by-id/:prescriptionID", async (req, res) => {
           pr.CreationDate,
           pr.EndDate,
           pr.ServiceType,
+          pr.RequestID,
+          pr.PrintStatus,
 
           -- Patient Info
           p.PatientID,
@@ -159,7 +165,9 @@ router.post("/create", async (req, res) => {
     PatientID,
     DoctorID,
     ServiceType,
-    EndDate
+    EndDate,
+    RequestID,
+    PrintStatus
   } = req.body;
 
   if (!PatientID || !DoctorID || !ServiceType) {
@@ -176,10 +184,12 @@ router.post("/create", async (req, res) => {
       .input("DoctorID", DoctorID)
       .input("ServiceType", ServiceType)
       .input("EndDate", EndDate || null)
+      .input("RequestID", RequestID !== undefined ? RequestID : null)
+      .input("PrintStatus", PrintStatus !== undefined ? PrintStatus : null)
       .input("CreationDate", new Date())
       .query(`
-        INSERT INTO Prescription (PatientID, DoctorID, ServiceType, EndDate, CreationDate)
-        VALUES (@PatientID, @DoctorID, @ServiceType, @EndDate, @CreationDate);
+        INSERT INTO Prescription (PatientID, DoctorID, ServiceType, EndDate, RequestID, PrintStatus, CreationDate)
+        VALUES (@PatientID, @DoctorID, @ServiceType, @EndDate, @RequestID, @PrintStatus, @CreationDate);
         SELECT SCOPE_IDENTITY() AS PrescriptionID;
       `);
 
@@ -200,7 +210,7 @@ router.post("/create", async (req, res) => {
 // CREATE a new prescription with multiple drugs (bulk, transactional)
 // -----------------------------
 router.post('/bulk', async (req, res) => {
-  const { PatientID, DoctorID, ServiceType, EndDate, drugs } = req.body;
+  const { PatientID, DoctorID, ServiceType, EndDate, RequestID, PrintStatus, drugs } = req.body;
   // drugs = [{ Quantity, Description, CreationDate }, ...]
 
   if (!PatientID || !DoctorID || !ServiceType || !Array.isArray(drugs)) {
@@ -217,10 +227,12 @@ router.post('/bulk', async (req, res) => {
         .input('DoctorID', DoctorID)
         .input('ServiceType', ServiceType)
         .input('EndDate', EndDate || null)
+        .input('RequestID', RequestID !== undefined ? RequestID : null)
+        .input('PrintStatus', PrintStatus !== undefined ? PrintStatus : null)
         .input('CreationDate', new Date())
         .query(`
-          INSERT INTO Prescription (PatientID, DoctorID, ServiceType, EndDate, CreationDate)
-          VALUES (@PatientID, @DoctorID, @ServiceType, @EndDate, @CreationDate);
+          INSERT INTO Prescription (PatientID, DoctorID, ServiceType, EndDate, RequestID, PrintStatus, CreationDate)
+          VALUES (@PatientID, @DoctorID, @ServiceType, @EndDate, @RequestID, @PrintStatus, @CreationDate);
           SELECT SCOPE_IDENTITY() AS PrescriptionID;
         `);
 
@@ -318,5 +330,33 @@ router.put("/:id", async (req, res) => {
 // DELETE a prescription
 // -----------------------------
 router.delete("/:id", controller.delete("DrugAndMedicine", "MedicineID"));
+
+// -----------------------------
+// UPDATE PrintStatus for a prescription (only)
+// -----------------------------
+router.patch('/:id/printstatus', async (req, res) => {
+  const { PrintStatus } = req.body;
+
+  if (PrintStatus === undefined) {
+    return res.status(400).json({ success: false, message: 'PrintStatus is required in body' });
+  }
+
+  try {
+    const pool = await poolPromise;
+    await pool.request()
+      .input('PrescriptionID', req.params.id)
+      .input('PrintStatus', PrintStatus)
+      .query(`
+        UPDATE Prescription
+        SET PrintStatus = @PrintStatus
+        WHERE PrescriptionID = @PrescriptionID
+      `);
+
+    return res.json({ success: true, message: 'PrintStatus updated' });
+  } catch (err) {
+    console.error('Error updating PrintStatus:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
 
 module.exports = router;
