@@ -143,6 +143,8 @@ safeMount('/Appointments', './Routes/appointments');
 safeMount('/FollowUps', './Routes/followups');
 safeMount('/Referrals', './Routes/referrals');
 safeMount('/patients', './Routes/patients');
+// Backwards compatibility: some clients call /Patient (singular, capitalized)
+safeMount('/Patient', './Routes/patients');
 safeMount('/Doctors', './Routes/doctors');
 safeMount('/prescription-requests', './Routes/prescription_requests');
 safeMount('/ContactPerson', './Routes/contactperson');

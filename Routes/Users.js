@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const poolPromise = require('../db');
+const fs = require('fs');
+const path = require('path');
 const generic = require('../Controllers/genericController')(poolPromise);
 const { upsertUsers } = require('./streamService');
 const crypto = require('crypto');
@@ -450,7 +452,33 @@ router.post('/verify-sms-otp', forgotController.verifySmsOtp);
 // ----------------------------------------------------
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
+  
+  // Helper: gather client info for logging
+  function gatherClientInfo() {
+    const headers = req.headers || {};
+    // IP: prefer X-Forwarded-For (comma list), otherwise use socket remote address
+    let ip = headers['x-forwarded-for'] || req.connection?.remoteAddress || req.socket?.remoteAddress || req.ip || '';
+    if (Array.isArray(ip)) ip = ip[0];
+    if (typeof ip === 'string' && ip.indexOf(',') !== -1) ip = ip.split(',')[0].trim();
 
+    // Device name: client can send `x-device-name` header or `deviceName` in body; fall back to user-agent
+    const deviceName = headers['x-device-name'] || req.body?.deviceName || headers['user-agent'] || '';
+
+    return { ip, deviceName: deviceName.toString() };
+  }
+
+  // Helper: append a server-side log entry (no DB writes)
+  function appendLoginLog(entry) {
+    try {
+      const logsDir = path.join(__dirname, '..', 'logs');
+      if (!fs.existsSync(logsDir)) fs.mkdirSync(logsDir, { recursive: true });
+      const logFile = path.join(logsDir, 'unknown_logins.log');
+      const line = `[${new Date().toISOString()}] ${entry}\n`;
+      fs.appendFileSync(logFile, line, { encoding: 'utf8' });
+    } catch (e) {
+      console.error('Failed to write login log:', e && e.message ? e.message : e);
+    }
+  }
   try {
     const pool = await poolPromise;
 
@@ -462,6 +490,14 @@ router.post('/login', async (req, res) => {
       `);
 
     if (result.recordset.length === 0) {
+      // Log unknown username attempts to server log for offline review (IP, device name, MAC if provided)
+      try {
+        const info = gatherClientInfo();
+        const entry = `UNKNOWN_USER_LOGIN username=${username} ip=${info.ip} device="${info.deviceName}"`;
+        appendLoginLog(entry);
+      } catch (e) {
+        console.error('Failed gathering client info for unknown login:', e && e.message ? e.message : e);
+      }
       return res.json({ success: false, message: 'Invalid username or password' });
     }
 
@@ -470,6 +506,14 @@ router.post('/login', async (req, res) => {
     const isPasswordValid = verifyPassword(password, user.Password);
 
     if (!isPasswordValid) {
+      // Log failed password attempt (user exists but bad password)
+      try {
+        const info = gatherClientInfo();
+        const entry = `FAILED_PASSWORD username=${username} userid=${user.UserID} ip=${info.ip} device="${info.deviceName}"`;
+        appendLoginLog(entry);
+      } catch (e) {
+        console.error('Failed logging failed password attempt:', e && e.message ? e.message : e);
+      }
       return res.json({ success: false, message: 'Invalid username or password' });
     }
 
@@ -496,6 +540,15 @@ router.post('/login', async (req, res) => {
       modificationdate: user.ModificationDate,
       enddate: user.EndDate
     };
+
+    // Log successful login (server-only) with client info
+    try {
+      const info = gatherClientInfo();
+      const entry = `LOGIN_SUCCESS username=${username} userid=${user.UserID} ip=${info.ip} device="${info.deviceName}"`;
+      appendLoginLog(entry);
+    } catch (e) {
+      console.error('Failed logging successful login:', e && e.message ? e.message : e);
+    }
 
     return res.json({
       success: true,

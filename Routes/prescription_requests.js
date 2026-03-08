@@ -13,11 +13,28 @@ router.post("/create", async (req, res) => {
   }
   try {
     const pool = await poolPromise;
-    await pool.request()
-      .input("PatientID", PatientID)
-      .input("Reason", Reason || null)
-      .input("Symptoms", Symptoms || null)
-      .query(`INSERT INTO Prescriptionrequests (PatientID, Reason, Symptoms) VALUES (@PatientID, @Reason, @Symptoms)`);
+    // If the database still has a DoctorID column (older schemas), insert NULL into it.
+    // Otherwise use the column list without DoctorID. This makes the endpoint
+    // compatible with both older and newer database schemas.
+    const colCheck = await pool.request()
+      .input('tableName', 'Prescriptionrequests')
+      .input('columnName', 'DoctorID')
+      .query(`SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = @tableName AND COLUMN_NAME = @columnName`);
+    const hasDoctorColumn = colCheck.recordset && colCheck.recordset.length > 0;
+    if (hasDoctorColumn) {
+      await pool.request()
+        .input("PatientID", PatientID)
+        .input("Reason", Reason || null)
+        .input("Symptoms", Symptoms || null)
+        .input('DoctorID', null)
+        .query(`INSERT INTO Prescriptionrequests (PatientID, Reason, Symptoms, DoctorID) VALUES (@PatientID, @Reason, @Symptoms, @DoctorID)`);
+    } else {
+      await pool.request()
+        .input("PatientID", PatientID)
+        .input("Reason", Reason || null)
+        .input("Symptoms", Symptoms || null)
+        .query(`INSERT INTO Prescriptionrequests (PatientID, Reason, Symptoms) VALUES (@PatientID, @Reason, @Symptoms)`);
+    }
 
     res.json({ success: true, message: "Prescription request created" });
   } catch (err) {
