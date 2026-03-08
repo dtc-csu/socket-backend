@@ -5,14 +5,14 @@ const poolPromise = require("../db");
 // Create a new prescription request (Patient)
 router.post("/create", async (req, res) => {
   const { PatientID, DoctorID, Reason, Symptoms } = req.body;
-  if (!PatientID || !DoctorID) {
-    return res.status(400).json({ success: false, message: "PatientID and DoctorID are required" });
+  if (!PatientID) {
+    return res.status(400).json({ success: false, message: "PatientID is required" });
   }
   try {
     const pool = await poolPromise;
     await pool.request()
       .input("PatientID", PatientID)
-      .input("DoctorID", DoctorID)
+      .input("DoctorID", DoctorID !== undefined ? DoctorID : null)
       .input("Reason", Reason || null)
       .input("Symptoms", Symptoms || null)
       .query(`INSERT INTO Prescriptionrequests (PatientID, DoctorID, Reason, Symptoms) VALUES (@PatientID, @DoctorID, @Reason, @Symptoms)`);
@@ -111,7 +111,7 @@ router.get('/report/by-id/:requestId', async (req, res) => {
 
     // 2) Get patient + user info
     const patientRes = await pool.request()
-      .input('patientId', presRequest.Patient_id)
+      .input('patientId', presRequest.PatientID)
       .query(`
         SELECT p.PatientID, p.UserID AS PatientUserID, u.FirstName, u.MiddleName, u.LastName, p.Age, p.Sex, p.HomeAddress
         FROM Patient p
@@ -158,8 +158,8 @@ router.get('/report/approved', async (req, res) => {
     const result = await pool.request().query(`
       SELECT
         rq.RequestID AS RequestID,
-        rq.PatientID AS PatientID,
-        rq.DoctorID AS DoctorID,
+        rq.PatientID,
+        rq.DoctorID,
         rq.Reason,
         rq.Status,
 
@@ -178,8 +178,8 @@ router.get('/report/approved', async (req, res) => {
         dm.CreationDate AS MedicineDate
 
       FROM Prescriptionrequests rq
-      INNER JOIN Prescription pres ON pres.RequestID = rq.Id
-      LEFT JOIN Patient p ON rq.Patient_id = p.PatientID
+      INNER JOIN Prescription pres ON pres.RequestID = rq.RequestID
+      LEFT JOIN Patient p ON rq.PatientID = p.PatientID
       LEFT JOIN Users u ON p.UserID = u.UserID
       LEFT JOIN Doctors d ON pres.DoctorID = d.DoctorID
       LEFT JOIN Users du ON d.UserID = du.UserID

@@ -78,6 +78,21 @@ app.post("/stream/token", async (req, res) => {
   }
 });
 
+// Upsert a Stream user (creates user in GetStream).
+// Client can call this to ensure other participants exist before creating channels.
+app.post('/stream/upsert', async (req, res) => {
+  try {
+    const user = req.body;
+    if (!user || !user.userid) return res.status(400).json({ success: false, message: 'userid is required' });
+    // generateToken performs upsert internally; call it but discard token
+    await generateToken({ userid: user.userid, firstname: user.firstname || 'User', lastname: user.lastname || '' });
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('Stream upsert error:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 const bodyParser = require('body-parser');
 
 // 👇 RAW BODY for Stream webhook ONLY

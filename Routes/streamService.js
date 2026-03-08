@@ -43,6 +43,17 @@ async function generateToken(user) {
   return streamClient.createToken(userId);
 }
 
+/**
+ * Upsert multiple users to Stream in one call.
+ * @param {Array<Object>} users - [{ id: '123', name: 'First Last' }, ...]
+ */
+async function upsertUsers(users) {
+  if (!Array.isArray(users) || users.length === 0) return;
+  // Ensure id is string and name exists
+  const mapped = users.map(u => ({ id: u.id.toString(), name: u.name || '' }));
+  return streamClient.upsertUsers(mapped);
+}
+
 // Route: POST /streamService/token
 router.post("/token", async (req, res) => {
   try {
@@ -60,4 +71,5 @@ module.exports = {
   router,
   generateToken,
   STREAM_API_KEY,
+  upsertUsers,
 };

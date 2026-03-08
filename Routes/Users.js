@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const poolPromise = require('../db');
 const generic = require('../Controllers/genericController')(poolPromise);
+const { upsertUsers } = require('./streamService');
 const crypto = require('crypto');
 
 // Controllers
@@ -127,6 +128,21 @@ router.get('/', async (req, res) => {
         WHERE Disabled = 0 AND EndDate IS NULL
         ORDER BY FirstName, LastName
       `);
+
+    // Best-effort: upsert these users into GetStream so channels won't fail
+    try {
+      const usersToUpsert = (result.recordset || []).map(u => ({
+        id: (u.UserID || u.userid).toString(),
+        name: `${u.FirstName || u.firstname || ''} ${u.LastName || u.lastname || ''}`.trim(),
+      }));
+      // Fire-and-forget: don't block API response on Stream upsert
+      upsertUsers(usersToUpsert)
+        .then(() => console.log(`Upserted ${usersToUpsert.length} Stream users`))
+        .catch(err => console.error('Stream upsert (users) failed:', err && err.message ? err.message : err));
+    } catch (e) {
+      console.error('Stream upsert (prepare) failed:', e && e.message ? e.message : e);
+    }
+
     res.json(result.recordset);
   } catch (err) {
     console.error("Error fetching active users:", err);
