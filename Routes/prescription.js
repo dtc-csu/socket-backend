@@ -79,9 +79,9 @@ router.get("/report/:patientID", async (req, res) => {
 
           -- RX Item Info
           dm.MedicineID,
-          dm.Description AS MedicineDescription,
-          dm.Quantity,
-          dm.CreationDate AS MedicineDate
+          dm.Description AS Description,
+          dm.Quantity AS Quantity,
+          dm.CreationDate AS CreationDate
 
         FROM LatestPrescription pr
         INNER JOIN Patient p ON pr.PatientID = p.PatientID
@@ -136,9 +136,9 @@ router.get('/patient/:patientID', async (req, res) => {
 
           -- RX Item Info
           dm.MedicineID,
-          dm.Description AS MedicineDescription,
-          dm.Quantity,
-          dm.CreationDate AS MedicineDate
+          dm.Description AS Description,
+          dm.Quantity AS Quantity,
+          dm.CreationDate AS CreationDate
 
         FROM LatestPrescription pr
         INNER JOIN Patient p ON pr.PatientID = p.PatientID
@@ -190,9 +190,9 @@ router.get("/report/by-id/:prescriptionID", async (req, res) => {
 
           -- RX Item Info
           dm.MedicineID,
-          dm.Description AS MedicineDescription,
-          dm.Quantity,
-          dm.CreationDate AS MedicineDate
+          dm.Description AS Description,
+          dm.Quantity AS Quantity,
+          dm.CreationDate AS CreationDate
 
         FROM Prescription pr
         INNER JOIN Patient p ON pr.PatientID = p.PatientID
@@ -251,7 +251,47 @@ router.post("/create", async (req, res) => {
       `);
 
     const prescriptionID = result.recordset[0].PrescriptionID;
-    
+    // If this prescription was created from a prescription request, mark that request Approved
+    try {
+      if (RequestID) {
+        // Update the request status and Completedat
+        await pool.request()
+          .input('RequestID', RequestID)
+          .query(`UPDATE Prescriptionrequests SET Status='Approved', Completedat = GETDATE() WHERE RequestID = @RequestID`);
+
+        // Notify patient via FCM (if token exists)
+        const patientInfoResult = await pool.request()
+          .input('requestId', RequestID)
+          .query(`SELECT PatientID FROM Prescriptionrequests WHERE RequestID = @requestId`);
+        const presReq = patientInfoResult.recordset[0];
+        if (presReq && presReq.PatientID) {
+          const patientInfo = await pool.request()
+            .input('patientId', presReq.PatientID)
+            .query(`SELECT * FROM Patient WHERE PatientID = @patientId`);
+          const patient = patientInfo.recordset[0];
+          if (patient && patient.UserID) {
+            try {
+              const token = await redis.get(`fcm:${patient.UserID}`);
+              if (token && admin && admin.messaging) {
+                await admin.messaging().send({
+                  token,
+                  notification: {
+                    title: 'Prescription Approved',
+                    body: 'Your prescription request has been approved. Please check the app for details.',
+                  },
+                  android: { priority: 'high' },
+                });
+              }
+            } catch (e) {
+              console.error('Failed to send FCM after prescription create:', e && e.message ? e.message : e);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Error while auto-updating prescription request status:', e && e.message ? e.message : e);
+    }
+
     res.json({ 
       success: true,
       message: "Prescription created successfully",

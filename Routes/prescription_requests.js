@@ -198,9 +198,9 @@ router.get('/report/approved', async (req, res) => {
           u.FirstName + ' ' + COALESCE(u.MiddleName + ' ', '') + u.LastName AS PatientFullName,
 
         dm.MedicineID,
-        dm.Description AS MedicineDescription,
-        dm.Quantity,
-        dm.CreationDate AS MedicineDate
+        dm.Description AS Description,
+        dm.Quantity AS Quantity,
+        dm.CreationDate AS CreationDate
 
       FROM Prescriptionrequests rq
       INNER JOIN Prescription pres ON pres.RequestID = rq.RequestID
