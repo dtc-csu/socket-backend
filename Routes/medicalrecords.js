@@ -56,6 +56,26 @@ router.get('/grid', async (req, res) => {
   }
 });
 
+// ---------------------- GET medical records by patient ID ----------------------
+router.get('/patient/:patientId', async (req, res) => {
+  const patientId = req.params.patientId;
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('patientId', patientId)
+      .query(`
+        SELECT *
+        FROM MedicalRecords
+        WHERE PatientID = @patientId
+        ORDER BY VisitDate DESC
+      `);
+    res.json(result.recordset);
+  } catch (err) {
+    console.error('Error fetching patient medical records:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // Add record (MedicalRecords only)
 router.post("/", async (req, res) => {
   try {

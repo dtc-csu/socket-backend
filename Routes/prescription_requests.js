@@ -1,10 +1,13 @@
 const express = require("express");
 const router = express.Router();
 const poolPromise = require("../db");
+const redis = require("../redis");
+const firebaseRouter = require("./firebase");
+const admin = firebaseRouter.admin;
 
 // Create a new prescription request (Patient)
 router.post("/create", async (req, res) => {
-  const { PatientID, DoctorID, Reason, Symptoms } = req.body;
+  const { PatientID, Reason, Symptoms } = req.body;
   if (!PatientID) {
     return res.status(400).json({ success: false, message: "PatientID is required" });
   }
@@ -12,28 +15,17 @@ router.post("/create", async (req, res) => {
     const pool = await poolPromise;
     await pool.request()
       .input("PatientID", PatientID)
-      .input("DoctorID", DoctorID !== undefined ? DoctorID : null)
       .input("Reason", Reason || null)
       .input("Symptoms", Symptoms || null)
-      .query(`INSERT INTO Prescriptionrequests (PatientID, DoctorID, Reason, Symptoms) VALUES (@PatientID, @DoctorID, @Reason, @Symptoms)`);
+      .query(`INSERT INTO Prescriptionrequests (PatientID, Reason, Symptoms) VALUES (@PatientID, @Reason, @Symptoms)`);
+
     res.json({ success: true, message: "Prescription request created" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// Get all prescription requests for a doctor
-router.get("/doctor/:DoctorID", async (req, res) => {
-  try {
-    const pool = await poolPromise;
-    const result = await pool.request()
-      .input("DoctorID", req.params.DoctorID)
-      .query(`SELECT * FROM Prescriptionrequests WHERE DoctorID = @DoctorID ORDER BY Requestedat DESC`);
-    res.json(result.recordset);
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
+// NOTE: Doctor-specific listing removed because `DoctorID` was removed from prescription requests
 
 // Get all prescription requests for a patient
 router.get("/patient/:PatientID", async (req, res) => {
@@ -42,6 +34,18 @@ router.get("/patient/:PatientID", async (req, res) => {
     const result = await pool.request()
       .input("PatientID", req.params.PatientID)
       .query(`SELECT * FROM Prescriptionrequests WHERE PatientID = @PatientID ORDER BY Requestedat DESC`);
+    res.json(result.recordset);
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Get all prescription requests (for doctor/admin listing)
+router.get("/all", async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .query(`SELECT * FROM Prescriptionrequests ORDER BY Requestedat DESC`);
     res.json(result.recordset);
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -75,13 +79,21 @@ router.put("/update-status/:RequestID", async (req, res) => {
         .query(`SELECT * FROM Patient WHERE PatientID = @patientId`);
       const patientInfo = patientInfoResult.recordset[0];
       if (patientInfo && patientInfo.UserID) {
-        // Send FCM notification
-        const axios = require('axios');
-        await axios.post('http://localhost:3000/Users/send-fcm', {
-          userId: patientInfo.UserID,
-          title: 'Prescription Approved',
-          body: 'Your prescription request has been approved. Please visit the clinic to get your prescription.'
-        }).catch(() => {});
+        try {
+          const token = await redis.get(`fcm:${patientInfo.UserID}`);
+          if (token) {
+            await admin.messaging().send({
+              token,
+              notification: {
+                title: 'Prescription Approved',
+                body: 'Your prescription request has been approved. Please check the app for details.',
+              },
+              android: { priority: 'high' },
+            });
+          }
+        } catch (e) {
+          console.error('Failed to send FCM for prescription approval:', e && e.message ? e.message : e);
+        }
       }
       // Backend no longer auto-creates a Prescription; UI should call the prescription create endpoint.
     }
@@ -158,19 +170,15 @@ router.get('/report/approved', async (req, res) => {
     const result = await pool.request().query(`
       SELECT
         rq.RequestID AS RequestID,
-        rq.PatientID,
-        rq.DoctorID,
-        rq.Reason,
-        rq.Status,
+          rq.PatientID,
+          rq.Reason,
+          rq.Status,
 
-        pres.PrescriptionID,
-        pres.CreationDate AS PrescriptionCreationDate,
+          pres.PrescriptionID,
+          pres.CreationDate AS PrescriptionCreationDate,
 
-        p.PatientID,
-        u.FirstName + ' ' + COALESCE(u.MiddleName + ' ', '') + u.LastName AS PatientFullName,
-
-        d.DoctorID,
-        du.FirstName + ' ' + COALESCE(du.MiddleName + ' ', '') + du.LastName AS DoctorFullName,
+          p.PatientID,
+          u.FirstName + ' ' + COALESCE(u.MiddleName + ' ', '') + u.LastName AS PatientFullName,
 
         dm.MedicineID,
         dm.Description AS MedicineDescription,
@@ -181,8 +189,6 @@ router.get('/report/approved', async (req, res) => {
       INNER JOIN Prescription pres ON pres.RequestID = rq.RequestID
       LEFT JOIN Patient p ON rq.PatientID = p.PatientID
       LEFT JOIN Users u ON p.UserID = u.UserID
-      LEFT JOIN Doctors d ON pres.DoctorID = d.DoctorID
-      LEFT JOIN Users du ON d.UserID = du.UserID
       LEFT JOIN DrugAndMedicine dm ON pres.PrescriptionID = dm.PrescriptionID
       WHERE rq.Status = 'Approved'
       ORDER BY pres.CreationDate DESC, rq.RequestID DESC, dm.MedicineID
