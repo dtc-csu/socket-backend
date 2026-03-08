@@ -29,7 +29,8 @@ function verifyPassword(inputPassword, storedHash) {
 // ============================================================
 
 // ---------------------- GET USER BY ID (BY USERID) ----------------------
-router.get('/:id', async (req, res) => {
+// Only match numeric IDs here to avoid capturing named routes like '/patients'
+router.get('/:id(\\d+)', async (req, res) => {
   const userId = req.params.id;
   try {
     const pool = await poolPromise;
