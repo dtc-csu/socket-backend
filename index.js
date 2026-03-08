@@ -103,6 +103,27 @@ app.use(
 
 // 👇 Normal JSON for everything else
 app.use(bodyParser.json());
+// DB access for lightweight fallbacks
+const poolPromise = require('./db');
+
+// Resilient fallback for `/users` (lowercase) used by some clients.
+// If the `./Routes/Users` module failed to load at startup, this
+// endpoint will still return the active users list directly from DB.
+app.get('/users', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .query(`
+        SELECT * FROM Users
+        WHERE Disabled = 0 AND EndDate IS NULL
+        ORDER BY FirstName, LastName
+      `);
+    return res.json(result.recordset);
+  } catch (err) {
+    console.error('Fallback /users failed:', err && err.message ? err.message : err);
+    return res.status(500).json({ success: false, message: 'Fallback users endpoint error' });
+  }
+});
 /* ===================== HEALTH CHECK ===================== */
 app.get("/", (req, res) => {
   res.send("✅ API + Socket.IO + GetStream running");
