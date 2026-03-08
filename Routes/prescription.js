@@ -23,13 +23,24 @@ router.get("/", async (req, res) => {
         p.PatientID,
         u.FirstName + ' ' + u.MiddleName + ' ' + u.LastName AS PatientFullName,
 
-        du.FirstName + ' ' + du.MiddleName + ' ' + du.LastName AS DoctorFullName
+        du.FirstName + ' ' + du.MiddleName + ' ' + du.LastName AS DoctorFullName,
+
+        latest.Description AS Description,
+        latest.Quantity AS Quantity,
+        latest.MedicineID AS MedicineID
 
       FROM Prescription pr
       INNER JOIN Patient p ON pr.PatientID = p.PatientID
       INNER JOIN Users u ON p.UserID = u.UserID
-      INNER JOIN Doctors d ON pr.DoctorID = d.DoctorID
-      INNER JOIN Users du ON d.UserID = du.UserID
+      LEFT JOIN Doctors d ON pr.DoctorID = d.DoctorID
+      LEFT JOIN Users du ON d.UserID = du.UserID
+
+      OUTER APPLY (
+        SELECT TOP 1 dm.Description, dm.Quantity, dm.MedicineID
+        FROM DrugAndMedicine dm
+        WHERE dm.PrescriptionID = pr.PrescriptionID
+        ORDER BY dm.MedicineID DESC
+      ) latest
 
       ORDER BY pr.CreationDate DESC
     `);
@@ -79,9 +90,9 @@ router.get("/report/:patientID", async (req, res) => {
 
           -- RX Item Info
           dm.MedicineID,
-          dm.Description AS Description,
-          dm.Quantity AS Quantity,
-          dm.CreationDate AS CreationDate
+          dm.Description AS MedicineDescription,
+          dm.Quantity,
+          dm.CreationDate AS MedicineDate
 
         FROM LatestPrescription pr
         INNER JOIN Patient p ON pr.PatientID = p.PatientID
@@ -190,9 +201,9 @@ router.get("/report/by-id/:prescriptionID", async (req, res) => {
 
           -- RX Item Info
           dm.MedicineID,
-          dm.Description AS Description,
-          dm.Quantity AS Quantity,
-          dm.CreationDate AS CreationDate
+          dm.Description AS MedicineDescription,
+          dm.Quantity,
+          dm.CreationDate AS MedicineDate
 
         FROM Prescription pr
         INNER JOIN Patient p ON pr.PatientID = p.PatientID
