@@ -407,6 +407,41 @@ router.post("/", async (req, res) => {
 });
 
 // -----------------------------
+// DELETE a drug/medicine by its MedicineID and remove parent Prescription if empty
+// -----------------------------
+router.delete('/by-medicine/:medicineId', async (req, res) => {
+  const medicineId = req.params.medicineId;
+  try {
+    const pool = await poolPromise;
+
+    // Find the parent prescription
+    const medRes = await pool.request()
+      .input('medicineId', medicineId)
+      .query('SELECT PrescriptionID FROM DrugAndMedicine WHERE MedicineID = @medicineId');
+
+    if (!medRes.recordset || medRes.recordset.length === 0) {
+      return res.status(404).json({ success: false, message: 'Medicine not found' });
+    }
+
+    const prescriptionId = medRes.recordset[0].PrescriptionID;
+
+    // Delete all medicines for this prescription and then delete the prescription header
+    await pool.request()
+      .input('prescriptionId', prescriptionId)
+      .query('DELETE FROM DrugAndMedicine WHERE PrescriptionID = @prescriptionId');
+
+    await pool.request()
+      .input('prescriptionId', prescriptionId)
+      .query('DELETE FROM Prescription WHERE PrescriptionID = @prescriptionId');
+
+    return res.json({ success: true, message: 'Deleted medicine and cleaned up prescription' });
+  } catch (err) {
+    console.error('Error deleting medicine by id:', err && err.message ? err.message : err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// -----------------------------
 // EDIT a prescription
 // -----------------------------
 router.put("/:id", async (req, res) => {
