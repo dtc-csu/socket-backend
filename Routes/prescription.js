@@ -442,6 +442,29 @@ router.delete('/by-medicine/:medicineId', async (req, res) => {
 });
 
 // -----------------------------
+// DELETE a prescription by PrescriptionID (deletes all drugs and header)
+// -----------------------------
+router.delete('/header/:prescriptionId', async (req, res) => {
+  const prescriptionId = req.params.prescriptionId;
+  try {
+    const pool = await poolPromise;
+
+    await pool.request()
+      .input('prescriptionId', prescriptionId)
+      .query('DELETE FROM DrugAndMedicine WHERE PrescriptionID = @prescriptionId');
+
+    await pool.request()
+      .input('prescriptionId', prescriptionId)
+      .query('DELETE FROM Prescription WHERE PrescriptionID = @prescriptionId');
+
+    return res.json({ success: true, message: 'Deleted prescription and its medicines' });
+  } catch (err) {
+    console.error('Error deleting prescription header:', err && err.message ? err.message : err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// -----------------------------
 // EDIT a prescription
 // -----------------------------
 router.put("/:id", async (req, res) => {
