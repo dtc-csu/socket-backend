@@ -122,6 +122,8 @@ safeMount('/api/call', './Routes/call');
 safeMount('/ChatMessages', './Routes/chat');
 safeMount('/Users', './Routes/Users');
 safeMount('/prescription', './Routes/prescription');
+// Backwards-compatible mount: allow legacy client paths that expect /DrugsAndMedicine
+safeMount('/DrugsAndMedicine', './Routes/prescription');
 safeMount('/Appointments', './Routes/appointments');
 safeMount('/FollowUps', './Routes/followups');
 safeMount('/Referrals', './Routes/referrals');

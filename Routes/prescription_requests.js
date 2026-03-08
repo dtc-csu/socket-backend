@@ -4,18 +4,18 @@ const poolPromise = require("../db");
 
 // Create a new prescription request (Patient)
 router.post("/create", async (req, res) => {
-  const { Patient_id, Doctor_id, Reason, Symptoms } = req.body;
-  if (!Patient_id || !Doctor_id) {
-    return res.status(400).json({ success: false, message: "Patient_id and Doctor_id are required" });
+  const { PatientID, DoctorID, Reason, Symptoms } = req.body;
+  if (!PatientID || !DoctorID) {
+    return res.status(400).json({ success: false, message: "PatientID and DoctorID are required" });
   }
   try {
     const pool = await poolPromise;
     await pool.request()
-      .input("Patient_id", Patient_id)
-      .input("Doctor_id", Doctor_id)
+      .input("PatientID", PatientID)
+      .input("DoctorID", DoctorID)
       .input("Reason", Reason || null)
       .input("Symptoms", Symptoms || null)
-      .query(`INSERT INTO Prescription_requests (Patient_id, Doctor_id, Reason, Symptoms) VALUES (@Patient_id, @Doctor_id, @Reason, @Symptoms)`);
+      .query(`INSERT INTO Prescriptionrequests (PatientID, DoctorID, Reason, Symptoms) VALUES (@PatientID, @DoctorID, @Reason, @Symptoms)`);
     res.json({ success: true, message: "Prescription request created" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -23,12 +23,12 @@ router.post("/create", async (req, res) => {
 });
 
 // Get all prescription requests for a doctor
-router.get("/doctor/:Doctor_id", async (req, res) => {
+router.get("/doctor/:DoctorID", async (req, res) => {
   try {
     const pool = await poolPromise;
     const result = await pool.request()
-      .input("Doctor_id", req.params.Doctor_id)
-      .query(`SELECT * FROM Prescription_requests WHERE Doctor_id = @Doctor_id ORDER BY Requested_at DESC`);
+      .input("DoctorID", req.params.DoctorID)
+      .query(`SELECT * FROM Prescriptionrequests WHERE DoctorID = @DoctorID ORDER BY Requestedat DESC`);
     res.json(result.recordset);
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -36,12 +36,12 @@ router.get("/doctor/:Doctor_id", async (req, res) => {
 });
 
 // Get all prescription requests for a patient
-router.get("/patient/:Patient_id", async (req, res) => {
+router.get("/patient/:PatientID", async (req, res) => {
   try {
     const pool = await poolPromise;
     const result = await pool.request()
-      .input("Patient_id", req.params.Patient_id)
-      .query(`SELECT * FROM Prescription_requests WHERE Patient_id = @Patient_id ORDER BY Requested_at DESC`);
+      .input("PatientID", req.params.PatientID)
+      .query(`SELECT * FROM Prescriptionrequests WHERE PatientID = @PatientID ORDER BY Requestedat DESC`);
     res.json(result.recordset);
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -49,26 +49,26 @@ router.get("/patient/:Patient_id", async (req, res) => {
 });
 
 
-// Update status (approve/deny) and set Completed_at (Doctor)
-router.put("/update-status/:Id", async (req, res) => {
+// Update status (approve/deny) and set Completedat (Doctor)
+router.put("/update-status/:RequestID", async (req, res) => {
   const { Status } = req.body;
   if (!Status) return res.status(400).json({ success: false, message: "Status is required" });
   try {
     const pool = await poolPromise;
     // Get the request and patient info
     const requestResult = await pool.request()
-      .input("Id", req.params.Id)
-      .query(`SELECT * FROM Prescription_requests WHERE Id = @Id`);
+      .input("RequestID", req.params.RequestID)
+      .query(`SELECT * FROM Prescriptionrequests WHERE RequestID = @RequestID`);
     const request = requestResult.recordset[0];
     await pool.request()
-      .input("Id", req.params.Id)
+      .input("RequestID", req.params.RequestID)
       .input("Status", Status)
-      .query(`UPDATE Prescription_requests SET Status = @Status, Completed_at = CASE WHEN @Status = 'Approved' THEN GETDATE() ELSE NULL END WHERE Id = @Id`);
+      .query(`UPDATE Prescriptionrequests SET Status = @Status, Completedat = CASE WHEN @Status = 'Approved' THEN GETDATE() ELSE NULL END WHERE RequestID = @RequestID`);
 
     // Notify patient if approved
     if (Status === 'Approved' && request) {
       // Get patient userId
-      const patientId = request.Patient_id;
+      const patientId = request.PatientID;
       // Get patient info (to get UserID)
       const patientInfoResult = await pool.request()
         .input('patientId', patientId)
@@ -91,8 +91,6 @@ router.put("/update-status/:Id", async (req, res) => {
   }
 });
 
-module.exports = router;
-
 // ============================================================
 // REPORT: Get approved prescription request details + patient + prescription + drugs
 // ============================================================
@@ -104,7 +102,7 @@ router.get('/report/by-id/:requestId', async (req, res) => {
     // 1) Get the prescription request and ensure it's Approved
     const reqRes = await pool.request()
       .input('requestId', requestId)
-      .query(`SELECT * FROM Prescription_requests WHERE Id = @requestId AND Status = 'Approved'`);
+      .query(`SELECT * FROM Prescriptionrequests WHERE RequestID = @requestId AND Status = 'Approved'`);
 
     if (!reqRes.recordset || reqRes.recordset.length === 0) {
       return res.status(404).json({ success: false, message: 'Approved prescription request not found' });
@@ -159,9 +157,9 @@ router.get('/report/approved', async (req, res) => {
     const pool = await poolPromise;
     const result = await pool.request().query(`
       SELECT
-        rq.Id AS RequestID,
-        rq.Patient_id AS PatientID,
-        rq.Doctor_id AS DoctorID,
+        rq.RequestID AS RequestID,
+        rq.PatientID AS PatientID,
+        rq.DoctorID AS DoctorID,
         rq.Reason,
         rq.Status,
 
@@ -179,7 +177,7 @@ router.get('/report/approved', async (req, res) => {
         dm.Quantity,
         dm.CreationDate AS MedicineDate
 
-      FROM Prescription_requests rq
+      FROM Prescriptionrequests rq
       INNER JOIN Prescription pres ON pres.RequestID = rq.Id
       LEFT JOIN Patient p ON rq.Patient_id = p.PatientID
       LEFT JOIN Users u ON p.UserID = u.UserID
@@ -187,7 +185,7 @@ router.get('/report/approved', async (req, res) => {
       LEFT JOIN Users du ON d.UserID = du.UserID
       LEFT JOIN DrugAndMedicine dm ON pres.PrescriptionID = dm.PrescriptionID
       WHERE rq.Status = 'Approved'
-      ORDER BY pres.CreationDate DESC, rq.Id DESC, dm.MedicineID
+      ORDER BY pres.CreationDate DESC, rq.RequestID DESC, dm.MedicineID
     `);
 
     return res.json(result.recordset);
@@ -196,3 +194,6 @@ router.get('/report/approved', async (req, res) => {
     return res.status(500).json({ success: false, message: err.message || String(err) });
   }
 });
+
+module.exports = router;
+

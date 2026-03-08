@@ -101,6 +101,63 @@ router.get("/report/:patientID", async (req, res) => {
   }
 });
 
+// Backwards-compatible: GET /patient/:patientID used by older clients
+router.get('/patient/:patientID', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('patientID', req.params.patientID)
+      .query(`
+        ;WITH LatestPrescription AS (
+          SELECT TOP 1 *
+          FROM Prescription
+          WHERE PatientID = @patientID
+          ORDER BY CreationDate DESC
+        )
+        SELECT 
+          pr.PrescriptionID,
+          pr.CreationDate,
+          pr.EndDate,
+          pr.ServiceType,
+          pr.RequestID,
+          pr.PrintStatus,
+
+          -- Patient Info
+          p.PatientID,
+          u.FirstName + ' ' + u.MiddleName + ' ' + u.LastName AS PatientFullName,
+          p.HomeAddress AS PatientAddress,
+          p.Sex,
+          p.Age,
+
+          -- Doctor Info
+          d.DoctorID,
+          du.FirstName + ' ' + du.MiddleName + ' ' + du.LastName AS DoctorFullName,
+          d.LicenseNumber AS DoctorLicenseNumber,
+
+          -- RX Item Info
+          dm.MedicineID,
+          dm.Description AS MedicineDescription,
+          dm.Quantity,
+          dm.CreationDate AS MedicineDate
+
+        FROM LatestPrescription pr
+        INNER JOIN Patient p ON pr.PatientID = p.PatientID
+        INNER JOIN Users u ON p.UserID = u.UserID
+        INNER JOIN Doctors d ON pr.DoctorID = d.DoctorID
+        INNER JOIN Users du ON d.UserID = du.UserID
+        INNER JOIN DrugAndMedicine dm 
+          ON pr.PrescriptionID = dm.PrescriptionID
+
+        ORDER BY dm.MedicineID
+      `);
+
+    return res.json(result.recordset);
+  } catch (err) {
+    console.error('Error fetching prescription (patient) report:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // -----------------------------
 // REPORT: one prescription + all its drugs by PrescriptionID
 // (single header, many DrugAndMedicine rows)

@@ -284,5 +284,99 @@ router.get('/report/:patientID', async (req, res) => {
   }
 });
 
+// Backwards-compatible summary endpoint used by older clients
+router.get('/summary/patient/:patientID', async (req, res) => {
+  // Reuse the same query as /report/:patientID
+  const { patientID } = req.params;
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('patientID', patientID)
+      .query(`
+        SELECT TOP 1
+          mr.MedicalRecordID AS MedicalRecordID,
+          mr.PatientID AS PatientID,
+          CONCAT(u.FirstName, ' ', u.MiddleName, ' ', u.LastName) AS PatientFullName,
+          p.BirthDate AS BirthDate,
+          p.HomeAddress AS PatientAddress,
+          p.Sex AS Sex,
+          p.Age AS Age,
+          p.CollegeOffice AS College,
+          u.PhoneNumber AS ContactNumber,
+          cp.ContactPersonName AS EmContactPerson,
+          cp.ContactPersonContactNo AS EmContactNumber,
+          ISNULL(CONVERT(varchar(33), mr.VisitDate, 126), '') AS VisitDate,
+          mr.BloodPressure AS BloodPressure,
+          mr.CardiacRate AS CardiacRate,
+          mr.RespiratoryRate AS RespiratoryRate,
+          mr.Temperature AS Temperature,
+          mr.OxygenSaturation AS OxygenSaturation,
+          mr.ChiefComplaint AS ChiefComplaint,
+          mr.HistoryOfPresentIllness AS HistoryOfPresentIllness,
+          mr.DateInitiallySeen AS DateInitiallySeen,
+          mr.GeneralAppearance AS GeneralAppearance,
+          mr.Skin AS Skin,
+          mr.HeadNeck AS HeadNeck,
+          mr.ChestCardiovascular AS ChestCardiovascular,
+          mr.Abdomen AS Abdomen,
+          mr.Genitourinary AS Genitourinary,
+          mr.Neurologic AS Neurologic,
+          mr.Diagnosis AS Diagnosis,
+          mr.ManagementPlan AS ManagementPlan,
+          mr.CreationDate AS CreationDate,
+          ob.MenarcheAge AS MenarcheAge,
+          ob.MenstrualInterval AS MenstrualInterval,
+          ob.MenstrualDuration AS MenstrualDuration,
+          ob.MenstrualAmount AS MenstrualAmount,
+          ob.MenstrualSymptoms AS MenstrualSymptoms,
+          ISNULL(CONVERT(varchar(23), ob.LastMenstrualPeriod, 23), '') AS LastMenstrualPeriod,
+          past.HasAsthma AS HasAsthma,
+          past.HasDiabetes AS HasDiabetes,
+          past.HasHypertension AS HasHypertension,
+          past.HasHeartDisease AS HasHeartDisease,
+          past.HasKidneyDisease AS HasKidneyDisease,
+          family.FamilyAsthma AS FamilyAsthma,
+          family.FamilyDiabetes AS FamilyDiabetes,
+          family.FamilyHypertension AS FamilyHypertension,
+          family.FamilyHeartDisease AS FamilyHeartDisease,
+          family.FamilyKidneyDisease AS FamilyKidneyDisease,
+          review.Fever AS Fever,
+          review.Headache AS Headache,
+          review.Dizziness AS Dizziness,
+          review.BlurredVision AS BlurredVision,
+          review.ChestPain AS ChestPain,
+          review.ShortnessOfBreath AS ShortnessOfBreath,
+          review.Cough AS Cough,
+          review.Colds AS Colds,
+          review.AbdominalPain AS AbdominalPain,
+          review.Diarrhea AS Diarrhea,
+          review.Dysuria AS Dysuria,
+          review.Rashes AS Rashes,
+          review.Seizures AS Seizures,
+          review.Depression AS Depression,
+          review.EasyFatigue AS EasyFatigue,
+          review.AllergyNotes AS AllergyNotes,
+          review.BadHabit AS BadHabit
+        FROM MedicalRecords mr
+        LEFT JOIN OBHistory ob ON mr.MedicalRecordID = ob.MedicalRecordID
+        LEFT JOIN PastMedicalHistory past ON mr.MedicalRecordID = past.MedicalRecordID
+        LEFT JOIN FamilyHistory family ON mr.MedicalRecordID = family.MedicalRecordID
+        LEFT JOIN ReviewOfSystems review ON mr.MedicalRecordID = review.MedicalRecordID
+        LEFT JOIN Patient p ON mr.PatientID = p.PatientID
+        LEFT JOIN Users u ON p.UserID = u.UserID
+        LEFT JOIN ContactPerson cp ON p.UserID = cp.UserID
+        WHERE mr.PatientID = @patientID
+        ORDER BY mr.VisitDate DESC
+      `);
+    if (result.recordset.length === 0) {
+      return res.status(404).json({ message: 'No medical record found.' });
+    }
+    res.json(result.recordset[0]);
+  } catch (err) {
+    console.error('MedicalRecordSummary Exception:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // Final export
 module.exports = router;

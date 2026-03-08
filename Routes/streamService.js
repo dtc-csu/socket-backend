@@ -55,4 +55,9 @@ router.post("/token", async (req, res) => {
   }
 });
 
-module.exports = router;
+// Export router for mounting, and helper functions/constants for direct use
+module.exports = {
+  router,
+  generateToken,
+  STREAM_API_KEY,
+};
