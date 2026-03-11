@@ -146,8 +146,9 @@ app.post('/stream/request_delete_channel', bodyParser.json(), async (req, res) =
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    const role = (result.recordset[0].Role || result.recordset[0].role || '').toString().toLowerCase();
-    const allowed = ['administrator', 'admin'];
+    const role = (result.recordset[0].Role || result.recordset[0].role || '').toString().trim().toLowerCase();
+    // Allow administrators and doctors to request permanent channel deletion
+    const allowed = ['administrator', 'admin', 'doctor'];
     if (!allowed.includes(role)) {
       return res.status(403).json({ success: false, message: 'forbidden' });
     }
