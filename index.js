@@ -91,7 +91,6 @@ app.post('/stream/upsert', bodyParser.json(), async (req, res) => {
   }
 });
 
-const bodyParser = require('body-parser');
 
 // 👇 RAW BODY for Stream webhook ONLY
 app.use(
