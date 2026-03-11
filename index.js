@@ -6,7 +6,6 @@ const http = require("http");
 const { Server } = require("socket.io");
 
 // Import Stream service
-const { generateToken, STREAM_API_KEY } = require("./Routes/streamService");
 
 /* ===================== APP SETUP ===================== */
 const app = express();
