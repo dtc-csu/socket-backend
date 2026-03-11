@@ -341,6 +341,8 @@ safeMount('/SystemSettings', './Routes/systemsettings');
 safeMount('/Transactions', './Routes/transactions');
 safeMount('/api/stream', './Routes/streamWebhook');
 safeMount('/api/generic', './Routes/fcm_generic');
+// Mount Stream service routes (token, create/get-or-create-dm, admin helpers)
+safeMount('/streamService', './Routes/streamService');
 
 /* ===================== SERVER START ===================== */
 const PORT = process.env.PORT || 3000;

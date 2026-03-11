@@ -96,7 +96,7 @@ async function deleteChannel(type, channelId) {
  * @param {Object} extraData
  * @returns {string} channelId
  */
-async function createChannel(type, members, extraData = {}) {
+async function createChannel(type, members, extraData = {}, createdById = null, channelId = null) {
   if (!Array.isArray(members) || members.length === 0) {
     throw new Error('members array is required');
   }
@@ -104,17 +104,39 @@ async function createChannel(type, members, extraData = {}) {
   // Normalize member ids to strings
   const memberIds = members.map(m => m.toString());
 
-  // Create a unique id to avoid attempting to recreate a deleted channel
-  const id = `dm_${memberIds.join('_')}_${Date.now()}`;
+  // Use provided channelId to allow recreating a previously deleted channel.
+  // If not provided, generate a stable-ish dm id (no timestamp) to allow predictable DM ids.
+  const id = channelId || `dm_${memberIds.join('_')}`;
+
+  // Server-side auth requires either data.created_by or data.created_by_id
+  // when creating channels. Prefer explicit createdById, else use the first member.
+  const created_by_id = createdById ? createdById.toString() : memberIds[0];
 
   const ch = streamClient.channel(type || 'messaging', id, {
     members: memberIds,
+    created_by_id,
     ...extraData,
   });
 
   await ch.create();
   return ch.id;
 }
+
+// Route: POST /streamService/create-channel
+// Body: { type, members: ['10','11'], extraData?, createdById?, channelId? }
+router.post('/create-channel', async (req, res) => {
+  try {
+    const { type, members, extraData, createdById, channelId } = req.body || {};
+    if (!Array.isArray(members) || members.length === 0) {
+      return res.status(400).json({ success: false, message: 'members array is required' });
+    }
+    const id = await createChannel(type, members, extraData || {}, createdById || null, channelId || null);
+    res.json({ success: true, channelId: id });
+  } catch (err) {
+    console.error('StreamService create-channel Exception:', err && err.stack ? err.stack : err);
+    res.status(500).json({ success: false, message: err.message, error: err });
+  }
+});
 
 // Route: POST /streamService/token
 router.post("/token", async (req, res) => {
@@ -143,3 +165,57 @@ module.exports = {
   deleteChannel,
   createChannel,
 };
+
+/**
+ * Try to get-or-create a DM channel for the provided members. Uses a canonical
+ * id `dm_a_b` (sorted member ids) so repeated requests map to the same convo.
+ * If the server-side creation is blocked by a RecreateChannel permission, a
+ * new unique id will be generated and used instead.
+ * @param {Array<string>} members
+ * @param {string|null} createdById
+ * @returns {string} channelId
+ */
+async function getOrCreateDmChannel(members, createdById = null) {
+  if (!Array.isArray(members) || members.length === 0) {
+    throw new Error('members array is required');
+  }
+
+  const memberIds = members.map(m => m.toString());
+  // Canonical ordering so dm_10_11 == dm_11_10
+  const sorted = memberIds.slice().sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  const baseId = `dm_${sorted.join('_')}`;
+
+  // Ensure users exist before creating channel
+  await upsertUsers(sorted.map(id => ({ id, name: '' })));
+
+  try {
+    return await createChannel('messaging', sorted, {}, createdById || sorted[0], baseId);
+  } catch (err) {
+    const msg = (err && (err.message || (err.response && err.response.data && err.response.data.message))) || '';
+    // If recreate is not allowed for this role, fall back to a new id
+    if (msg && msg.toString().includes('RecreateChannel')) {
+      const fallbackId = `${baseId}_${Date.now()}`;
+      return await createChannel('messaging', sorted, {}, createdById || sorted[0], fallbackId);
+    }
+    throw err;
+  }
+}
+
+// Route: POST /streamService/get-or-create-dm
+// Body: { members: ['10','11'], createdById? }
+router.post('/get-or-create-dm', async (req, res) => {
+  try {
+    const { members, createdById } = req.body || {};
+    if (!Array.isArray(members) || members.length === 0) {
+      return res.status(400).json({ success: false, message: 'members array is required' });
+    }
+    const channelId = await getOrCreateDmChannel(members, createdById || null);
+    res.json({ success: true, channelId });
+  } catch (err) {
+    console.error('StreamService get-or-create-dm Exception:', err && err.stack ? err.stack : err);
+    res.status(500).json({ success: false, message: err.message, error: err });
+  }
+});
+
+// export helper for other modules
+module.exports.getOrCreateDmChannel = getOrCreateDmChannel;
