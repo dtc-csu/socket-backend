@@ -7,6 +7,7 @@ const { Server } = require("socket.io");
 
 // Import Stream service
 const { generateToken, STREAM_API_KEY, deleteChannel } = require('./Routes/streamService');
+const { createChannel } = require('./Routes/streamService');
 
 /* ===================== APP SETUP ===================== */
 const app = express();
@@ -128,6 +129,28 @@ app.post('/stream/admin/delete_channel', bodyParser.json(), async (req, res) => 
   }
 });
 
+// Admin: create a new channel with admin creds
+app.post('/stream/admin/create_channel', bodyParser.json(), async (req, res) => {
+  try {
+    const adminHeader = req.headers['x-admin-secret'] || req.body.adminSecret;
+    const expected = process.env.STREAM_ADMIN_SECRET || process.env.STREAM_API_SECRET;
+    if (!adminHeader || adminHeader !== expected) {
+      return res.status(401).json({ success: false, message: 'unauthorized' });
+    }
+
+    const { members, type, extraData } = req.body || {};
+    if (!members || !Array.isArray(members) || members.length === 0) {
+      return res.status(400).json({ success: false, message: 'members array is required' });
+    }
+
+    const channelId = await createChannel(type || 'messaging', members, extraData || {});
+    return res.json({ success: true, channelId });
+  } catch (err) {
+    console.error('Admin create_channel error:', err && err.stack ? err.stack : err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // Request-based deletion: mobile client can request deletion by providing
 // their user id. Server will validate the user's role in the database and
 // perform the permanent delete only for authorized roles (e.g., Administrator).
@@ -158,6 +181,38 @@ app.post('/stream/request_delete_channel', bodyParser.json(), async (req, res) =
     return res.json({ success: true });
   } catch (err) {
     console.error('Request delete channel error:', err && err.stack ? err.stack : err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Request-based channel creation: client can ask server to create a fresh
+// channel (useful when a previous DM was permanently deleted).
+app.post('/stream/request_create_channel', bodyParser.json(), async (req, res) => {
+  try {
+    const { members, type, requesterUserId, extraData } = req.body || {};
+    if (!members || !Array.isArray(members) || members.length === 0 || !requesterUserId)
+      return res.status(400).json({ success: false, message: 'members and requesterUserId are required' });
+
+    // Lookup user role in DB
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('userId', requesterUserId)
+      .query(`SELECT Role FROM Users WHERE userid = @userId`);
+
+    if (!result.recordset.length) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const role = (result.recordset[0].Role || result.recordset[0].role || '').toString().trim().toLowerCase();
+    const allowed = ['administrator', 'admin', 'doctor'];
+    if (!allowed.includes(role)) {
+      return res.status(403).json({ success: false, message: 'forbidden' });
+    }
+
+    const channelId = await createChannel(type || 'messaging', members, extraData || {});
+    return res.json({ success: true, channelId });
+  } catch (err) {
+    console.error('Request create channel error:', err && err.stack ? err.stack : err);
     return res.status(500).json({ success: false, message: err.message });
   }
 });

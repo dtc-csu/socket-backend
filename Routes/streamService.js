@@ -88,6 +88,34 @@ async function deleteChannel(type, channelId) {
   return ch.delete();
 }
 
+/**
+ * Create a new channel server-side using admin credentials.
+ * Generates a unique channel id to avoid RecreateChannel permission issues.
+ * @param {string} type
+ * @param {Array<string>} members
+ * @param {Object} extraData
+ * @returns {string} channelId
+ */
+async function createChannel(type, members, extraData = {}) {
+  if (!Array.isArray(members) || members.length === 0) {
+    throw new Error('members array is required');
+  }
+
+  // Normalize member ids to strings
+  const memberIds = members.map(m => m.toString());
+
+  // Create a unique id to avoid attempting to recreate a deleted channel
+  const id = `dm_${memberIds.join('_')}_${Date.now()}`;
+
+  const ch = streamClient.channel(type || 'messaging', id, {
+    members: memberIds,
+    ...extraData,
+  });
+
+  await ch.create();
+  return ch.id;
+}
+
 // Route: POST /streamService/token
 router.post("/token", async (req, res) => {
   try {
@@ -113,4 +141,5 @@ module.exports = {
   STREAM_API_KEY,
   upsertUsers,
   deleteChannel,
+  createChannel,
 };
