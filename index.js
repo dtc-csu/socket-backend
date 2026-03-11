@@ -86,19 +86,21 @@ app.post("/stream/token", bodyParser.json(), async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
     const dbUser = result.recordset[0];
+    // Log dbUser for debugging when fields don't match expected names
+    console.log('Stream token: dbUser row:', dbUser);
     let token;
     try {
       token = await generateToken({
-        userid: dbUser.userid,
-        firstname: dbUser.firstname || dbUser.FirstName || '',
-        lastname: dbUser.lastname || dbUser.LastName || '',
-        username: dbUser.username || dbUser.Username || '',
+        userid: userid, // use validated request id to avoid mismatches
+        firstname: dbUser.firstname || dbUser.FirstName || req.body.firstname || '',
+        lastname: dbUser.lastname || dbUser.LastName || req.body.lastname || '',
+        username: dbUser.username || dbUser.Username || req.body.username || '',
       });
     } catch (e) {
-      console.error('generateToken failed for dbUser', dbUser && dbUser.userid, e && e.stack ? e.stack : e);
+      console.error('generateToken failed for userid', userid, e && e.stack ? e.stack : e);
       return res.status(500).json({ error: 'Failed to generate token', details: e.message });
     }
-    res.json({ apiKey: STREAM_API_KEY, userId: dbUser.userid, token });
+    res.json({ apiKey: STREAM_API_KEY, userId: userid, token });
   } catch (err) {
     console.error(err);
     res.status(400).json({ error: err.message });
@@ -119,12 +121,18 @@ app.post('/stream/upsert', bodyParser.json(), async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
     const dbUser = result.recordset[0];
-    await generateToken({
-      userid: dbUser.userid,
-      firstname: dbUser.firstname || dbUser.FirstName || '',
-      lastname: dbUser.lastname || dbUser.LastName || '',
-      username: dbUser.username || dbUser.Username || '',
-    });
+    console.log('Stream upsert: dbUser row:', dbUser);
+    try {
+      await generateToken({
+        userid: userid,
+        firstname: dbUser.firstname || dbUser.FirstName || req.body.firstname || 'User',
+        lastname: dbUser.lastname || dbUser.LastName || req.body.lastname || '',
+        username: dbUser.username || dbUser.Username || req.body.username || '',
+      });
+    } catch (e) {
+      console.error('generateToken (upsert) failed for userid', userid, e && e.stack ? e.stack : e);
+      return res.status(500).json({ success: false, message: 'Failed to upsert stream user', details: e.message });
+    }
     return res.json({ success: true });
   } catch (err) {
     console.error('Stream upsert error:', err);
