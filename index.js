@@ -61,17 +61,24 @@ io.on("connection", (socket) => {
 /* ===================== STREAM TOKEN ===================== */
 app.post("/stream/token", bodyParser.json(), async (req, res) => {
   try {
-    const user = req.body;
-
+    const { userid } = req.body;
+    if (!userid) return res.status(400).json({ error: 'userid is required' });
+    // Fetch user from DB
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('userId', userid)
+      .query(`SELECT * FROM Users WHERE userid = @userId`);
+    if (!result.recordset.length) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const dbUser = result.recordset[0];
     const token = await generateToken({
-      userid: user.userid,
-      firstname: user.firstname,
-      lastname: user.lastname,
+      userid: dbUser.userid,
+      firstname: dbUser.firstname || dbUser.FirstName || '',
+      lastname: dbUser.lastname || dbUser.LastName || '',
+      username: dbUser.username || dbUser.Username || '',
     });
-
-    res.json({ apiKey: STREAM_API_KEY,
-               userId: user.userid,
-               token });
+    res.json({ apiKey: STREAM_API_KEY, userId: dbUser.userid, token });
   } catch (err) {
     console.error(err);
     res.status(400).json({ error: err.message });
@@ -81,10 +88,23 @@ app.post("/stream/token", bodyParser.json(), async (req, res) => {
 // Client can call this to ensure other participants exist before creating channels.
 app.post('/stream/upsert', bodyParser.json(), async (req, res) => {
   try {
-    const user = req.body;
-    if (!user || !user.userid) return res.status(400).json({ success: false, message: 'userid is required' });
-    // generateToken performs upsert internally; call it but discard token
-    await generateToken({ userid: user.userid, firstname: user.firstname || 'User', lastname: user.lastname || '' });
+    const { userid } = req.body;
+    if (!userid) return res.status(400).json({ success: false, message: 'userid is required' });
+    // Fetch user from DB
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('userId', userid)
+      .query(`SELECT * FROM Users WHERE userid = @userId`);
+    if (!result.recordset.length) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    const dbUser = result.recordset[0];
+    await generateToken({
+      userid: dbUser.userid,
+      firstname: dbUser.firstname || dbUser.FirstName || '',
+      lastname: dbUser.lastname || dbUser.LastName || '',
+      username: dbUser.username || dbUser.Username || '',
+    });
     return res.json({ success: true });
   } catch (err) {
     console.error('Stream upsert error:', err);
