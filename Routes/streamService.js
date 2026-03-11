@@ -30,12 +30,29 @@ async function generateToken(user) {
   }
 
   const userId = user.userid.toString();
+  const firstName = (user.firstname || '').trim();
+  const lastName = (user.lastname || '').trim();
+  const username = (user.username || '').trim();
+  // Build display name: prefer first+last, then username, then userId
+  let displayName = `${firstName} ${lastName}`.trim();
+  if (!displayName || displayName === '') {
+    displayName = username || userId;
+  }
+  const fullName = displayName;
 
-  // 🔑 STEP 1: Ensure user exists in Stream
+  // 🔑 STEP 1: Ensure user exists in Stream, with extraData for robust frontend extraction
   await streamClient.upsertUsers([
     {
-      id: userId, // ← FROM YOUR USERS TABLE
-      name: `${user.firstname} ${user.lastname}`,
+      id: userId,
+      name: displayName,
+      // Add extraData fields for frontend
+      ...((firstName || lastName || fullName) && {
+        extraData: {
+          firstName,
+          lastName,
+          fullName,
+        },
+      }),
     },
   ]);
 
