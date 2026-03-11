@@ -1,7 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const { generateToken, STREAM_API_KEY } = require("../Routes/streamService");
-const admin = require("./firebase");
+const firebaseRouter = require("./firebase");
+const admin = firebaseRouter.admin;
 const redis = require("../redis");
 
 /**

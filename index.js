@@ -10,7 +10,6 @@ const { generateToken, STREAM_API_KEY } = require("./Routes/streamService");
 /* ===================== APP SETUP ===================== */
 const app = express();
 app.use(cors());
-app.use(express.json());
 
 const server = http.createServer(app);
 
