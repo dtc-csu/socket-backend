@@ -127,6 +127,39 @@ app.post('/stream/admin/delete_channel', bodyParser.json(), async (req, res) => 
     return res.status(500).json({ success: false, message: err.message });
   }
 });
+
+// Request-based deletion: mobile client can request deletion by providing
+// their user id. Server will validate the user's role in the database and
+// perform the permanent delete only for authorized roles (e.g., Administrator).
+app.post('/stream/request_delete_channel', bodyParser.json(), async (req, res) => {
+  try {
+    const { channelId, type, requesterUserId } = req.body || {};
+    if (!channelId || !requesterUserId) return res.status(400).json({ success: false, message: 'channelId and requesterUserId are required' });
+
+    // Lookup user role in DB
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('userId', requesterUserId)
+      .query(`SELECT Role FROM Users WHERE userid = @userId`);
+
+    if (!result.recordset.length) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const role = (result.recordset[0].Role || result.recordset[0].role || '').toString().toLowerCase();
+    const allowed = ['administrator', 'admin'];
+    if (!allowed.includes(role)) {
+      return res.status(403).json({ success: false, message: 'forbidden' });
+    }
+
+    // Authorized: perform server-side delete
+    await deleteChannel(type || 'messaging', channelId);
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('Request delete channel error:', err && err.stack ? err.stack : err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
 // Upsert a Stream user (creates user in GetStream).
 // Client can call this to ensure other participants exist before creating channels.
 app.post('/stream/upsert', bodyParser.json(), async (req, res) => {
