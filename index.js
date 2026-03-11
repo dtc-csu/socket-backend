@@ -1,6 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+const bodyParser = require('body-parser');
 const http = require("http");
 const { Server } = require("socket.io");
 
@@ -58,7 +59,7 @@ io.on("connection", (socket) => {
 });
 
 /* ===================== STREAM TOKEN ===================== */
-app.post("/stream/token", async (req, res) => {
+app.post("/stream/token", bodyParser.json(), async (req, res) => {
   try {
     const user = req.body;
 
@@ -79,7 +80,7 @@ app.post("/stream/token", async (req, res) => {
 
 // Upsert a Stream user (creates user in GetStream).
 // Client can call this to ensure other participants exist before creating channels.
-app.post('/stream/upsert', async (req, res) => {
+app.post('/stream/upsert', bodyParser.json(), async (req, res) => {
   try {
     const user = req.body;
     if (!user || !user.userid) return res.status(400).json({ success: false, message: 'userid is required' });
