@@ -77,7 +77,6 @@ app.post("/stream/token", bodyParser.json(), async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 });
-
 // Upsert a Stream user (creates user in GetStream).
 // Client can call this to ensure other participants exist before creating channels.
 app.post('/stream/upsert', bodyParser.json(), async (req, res) => {
