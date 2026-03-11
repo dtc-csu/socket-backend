@@ -25,11 +25,13 @@ const streamClient = StreamChat.getInstance(
  * @returns {string} token
  */
 async function generateToken(user) {
-  if (!user || !user.userid) {
+  // Accept several possible id property names for robustness
+  const rawId = (user && (user.userid || user.userId || user.id || user.uid));
+  if (!user || !rawId) {
     throw new Error("user.userid is required");
   }
 
-  const userId = user.userid.toString();
+  const userId = rawId.toString();
   const firstName = (user.firstname || '').trim();
   const lastName = (user.lastname || '').trim();
   const username = (user.username || '').trim();
@@ -74,11 +76,17 @@ async function upsertUsers(users) {
 // Route: POST /streamService/token
 router.post("/token", async (req, res) => {
   try {
-    const user = req.body;
+    const user = req.body || {};
+    // Validate common id fields
+    const rawId = user.userid || user.userId || user.id || user.uid;
+    if (!rawId) {
+      console.warn('StreamService /token called without userid. Body:', user);
+      return res.status(400).json({ success: false, message: 'userid is required' });
+    }
     const token = await generateToken(user);
     res.json({ token });
   } catch (err) {
-    console.error("StreamService Token Exception:", err);
+    console.error("StreamService Token Exception:", err && err.stack ? err.stack : err);
     res.status(500).json({ success: false, message: err.message });
   }
 });

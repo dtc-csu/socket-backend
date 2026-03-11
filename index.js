@@ -59,10 +59,24 @@ io.on("connection", (socket) => {
 });
 
 /* ===================== STREAM TOKEN ===================== */
+// Debug middleware: log incoming /stream requests JSON body for troubleshooting
+app.use('/stream', bodyParser.json(), (req, res, next) => {
+  try {
+    console.log('DEBUG /stream request ->', req.method, req.path, 'body:', req.body);
+  } catch (e) {
+    console.warn('DEBUG /stream logging failed:', e && e.message ? e.message : e);
+  }
+  next();
+});
+
 app.post("/stream/token", bodyParser.json(), async (req, res) => {
   try {
-    const { userid } = req.body;
-    if (!userid) return res.status(400).json({ error: 'userid is required' });
+    const body = req.body || {};
+    const userid = body.userid || body.userId || body.id || body.uid;
+    if (!userid) {
+      console.warn('/stream/token called without userid. Body:', body);
+      return res.status(400).json({ error: 'userid is required', body });
+    }
     // Fetch user from DB
     const pool = await poolPromise;
     const result = await pool.request()
@@ -72,12 +86,18 @@ app.post("/stream/token", bodyParser.json(), async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
     const dbUser = result.recordset[0];
-    const token = await generateToken({
-      userid: dbUser.userid,
-      firstname: dbUser.firstname || dbUser.FirstName || '',
-      lastname: dbUser.lastname || dbUser.LastName || '',
-      username: dbUser.username || dbUser.Username || '',
-    });
+    let token;
+    try {
+      token = await generateToken({
+        userid: dbUser.userid,
+        firstname: dbUser.firstname || dbUser.FirstName || '',
+        lastname: dbUser.lastname || dbUser.LastName || '',
+        username: dbUser.username || dbUser.Username || '',
+      });
+    } catch (e) {
+      console.error('generateToken failed for dbUser', dbUser && dbUser.userid, e && e.stack ? e.stack : e);
+      return res.status(500).json({ error: 'Failed to generate token', details: e.message });
+    }
     res.json({ apiKey: STREAM_API_KEY, userId: dbUser.userid, token });
   } catch (err) {
     console.error(err);
