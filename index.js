@@ -6,7 +6,7 @@ const http = require("http");
 const { Server } = require("socket.io");
 
 // Import Stream service
-const { generateToken, STREAM_API_KEY } = require('./Routes/streamService');
+const { generateToken, STREAM_API_KEY, deleteChannel } = require('./Routes/streamService');
 
 /* ===================== APP SETUP ===================== */
 const app = express();
@@ -104,6 +104,27 @@ app.post("/stream/token", bodyParser.json(), async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(400).json({ error: err.message });
+  }
+});
+
+// Admin endpoint: permanently delete a Stream channel. This must be called
+// from a trusted server or with the admin secret header `x-admin-secret`.
+app.post('/stream/admin/delete_channel', bodyParser.json(), async (req, res) => {
+  try {
+    const adminHeader = req.headers['x-admin-secret'] || req.body.adminSecret;
+    const expected = process.env.STREAM_ADMIN_SECRET || process.env.STREAM_API_SECRET;
+    if (!adminHeader || adminHeader !== expected) {
+      return res.status(401).json({ success: false, message: 'unauthorized' });
+    }
+
+    const { channelId, type } = req.body || {};
+    if (!channelId) return res.status(400).json({ success: false, message: 'channelId is required' });
+
+    await deleteChannel(type || 'messaging', channelId);
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('Admin delete_channel error:', err && err.stack ? err.stack : err);
+    return res.status(500).json({ success: false, message: err.message });
   }
 });
 // Upsert a Stream user (creates user in GetStream).

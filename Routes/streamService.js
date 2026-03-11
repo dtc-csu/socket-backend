@@ -16,6 +16,10 @@ const streamClient = StreamChat.getInstance(
   STREAM_API_SECRET
 );
 
+// Admin secret used to protect server-only operations. Prefer a dedicated
+// STREAM_ADMIN_SECRET in env; fall back to the API secret if not provided.
+const ADMIN_SECRET = process.env.STREAM_ADMIN_SECRET || STREAM_API_SECRET;
+
 /**
  * Create / update Stream user, then generate token
  * @param {Object} user
@@ -73,6 +77,17 @@ async function upsertUsers(users) {
   return streamClient.upsertUsers(mapped);
 }
 
+/**
+ * Permanently delete a channel (server-side). Requires admin secret.
+ * @param {string} type - channel type, e.g. 'messaging'
+ * @param {string} channelId
+ */
+async function deleteChannel(type, channelId) {
+  if (!channelId) throw new Error('channelId is required');
+  const ch = streamClient.channel(type || 'messaging', channelId);
+  return ch.delete();
+}
+
 // Route: POST /streamService/token
 router.post("/token", async (req, res) => {
   try {
@@ -97,4 +112,5 @@ module.exports = {
   generateToken,
   STREAM_API_KEY,
   upsertUsers,
+  deleteChannel,
 };
